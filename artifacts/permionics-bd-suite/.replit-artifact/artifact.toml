@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Permionics BD Suite"
+version = "1.0.0"
+id = "artifacts/permionics-bd-suite"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19712
+
+[services.development]
+run = "pnpm --filter @workspace/permionics-bd-suite run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/permionics-bd-suite", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/permionics-bd-suite/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19712"
+BASE_PATH = "/"

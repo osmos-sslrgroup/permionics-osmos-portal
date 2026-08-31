@@ -1,0 +1,1 @@
+- [Permionics BD Suite architecture](permionics-bd-suite.md) — Supabase JS client (service key, server-only) + Anthropic RAG chatbot + JWT cookie auth; run supabase-migration.sql in Supabase SQL Editor before first use.
