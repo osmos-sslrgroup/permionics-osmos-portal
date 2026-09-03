@@ -1,6 +1,6 @@
 /**
- * Captures the #cs-root element as a high-quality PDF using html2canvas + jsPDF.
- * Outputs a clean A4 single-page PDF with proper margins.
+ * Captures the #cs-root element as a high-quality multi-page A4 PDF using html2canvas + jsPDF.
+ * Slices long content cleanly across standard A4 pages (210mm x 297mm).
  */
 export async function printCaseStudy() {
   const el = document.getElementById("cs-root");
@@ -15,13 +15,12 @@ export async function printCaseStudy() {
     import("jspdf"),
   ]);
 
-  // Temporarily ensure the element is not clipped for capture
   const originalOverflow = document.body.style.overflow;
   document.body.style.overflow = "visible";
 
   try {
     const canvas = await html2canvas(el, {
-      scale: 2,              // 2x for crisp print quality
+      scale: 2, // 2x for crisp print quality
       useCORS: true,
       allowTaint: true,
       logging: false,
@@ -36,25 +35,39 @@ export async function printCaseStudy() {
 
     const imgData = canvas.toDataURL("image/jpeg", 0.98);
 
-    // A4 dimensions in mm
-    const A4_W = 210;
-    const A4_H = 297;
+    // Standard A4 dimensions in mm
+    const A4_WIDTH = 210;
+    const A4_HEIGHT = 297;
 
-    const canvasW = canvas.width;
-    const canvasH = canvas.height;
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
 
-    // Scale image to fit A4 width exactly (210mm) and calculate height based on element aspect ratio
-    const imgW = A4_W;
-    const imgH = (canvasH / canvasW) * A4_W;
+    // Scaled height in mm based on A4 width aspect ratio
+    const imgWidth = A4_WIDTH;
+    const imgHeight = (canvasHeight / canvasWidth) * A4_WIDTH;
 
     const pdf = new jsPDF({
       orientation: "portrait",
       unit: "mm",
-      format: [imgW, imgH], // Single dynamic page matching the exact content height
+      format: "a4",
       compress: true,
     });
 
-    pdf.addImage(imgData, "JPEG", 0, 0, imgW, imgH);
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    // Render Page 1
+    pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+    heightLeft -= A4_HEIGHT;
+
+    // Render subsequent standard A4 pages if content spans beyond 1 page
+    while (heightLeft > 2) {
+      position -= A4_HEIGHT;
+      pdf.addPage();
+      pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+      heightLeft -= A4_HEIGHT;
+    }
+
     pdf.save(`Permionics_CaseStudy_${Date.now()}.pdf`);
   } catch (err) {
     document.body.style.overflow = originalOverflow;
