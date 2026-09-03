@@ -19,7 +19,7 @@ router.get("/projects", requireAuth, async (req, res): Promise<void> => {
     }
 
     res.json(
-      (data ?? []).map((p) => ({
+      (data ?? []).map((p: any) => ({
         id: p.id,
         name: p.name,
         companyName: p.company_name,

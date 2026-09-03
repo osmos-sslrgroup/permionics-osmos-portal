@@ -2,7 +2,7 @@ import { useParams, Link, useLocation } from "wouter";
 import { useGetCaseStudy, getGetCaseStudyQueryKey, useDeleteCaseStudy, useUpdateCaseStudy } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { CaseStudyPreview } from "../generator/creator_components/CaseStudyPreview";
-import { getPalette } from "../generator/creator_types";
+import { getPalette, DEFAULT_PHOTO_CFG } from "../generator/creator_types";
 import { printCaseStudy } from "../generator/creator_utils/print";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Edit, Download, Loader2, Trash2, FileText, CheckCircle2 } from "lucide-react";
@@ -196,12 +196,12 @@ export default function CaseStudyDetail() {
     valueDel: "",
     sidebarBullets: "",
     statBar: "",
-    plantImg: null,
-    plantCap: "",
-    plantImgCfg: null,
-    handshakeImg: null,
-    handshakeCap: data.testimonial || "",
-    handshakeImgCfg: null,
+    plantImg: (data as any).richData?.plantImg || null,
+    plantCap: (data as any).richData?.plantCap || "",
+    plantImgCfg: (data as any).richData?.plantImgCfg || DEFAULT_PHOTO_CFG,
+    handshakeImg: (data as any).richData?.handshakeImg || null,
+    handshakeCap: data.testimonial || (data as any).richData?.handshakeCap || "",
+    handshakeImgCfg: (data as any).richData?.handshakeImgCfg || DEFAULT_PHOTO_CFG,
     envImpact: "Purified water returned to member industries for process reuse, supporting zero discharge compliance.",
     companyName: "Permionics Membranes Pvt. Ltd.",
     website: "www.permionics.com",
@@ -214,9 +214,9 @@ export default function CaseStudyDetail() {
       }
       return { number: "", label: cardStr.trim() };
     }) : [],
-    beakersImg: null,
-    beakersCap: "",
-    beakersImgCfg: null,
+    beakersImg: (data as any).richData?.beakersImg || null,
+    beakersCap: (data as any).richData?.beakersCap || "",
+    beakersImgCfg: (data as any).richData?.beakersImgCfg || DEFAULT_PHOTO_CFG,
     fig1text: "",
     conclusions: data.fullText ? data.fullText.split("\n\n").slice(-1)[0] || "" : "",
     showTech: true,

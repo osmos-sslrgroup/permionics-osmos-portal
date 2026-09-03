@@ -34,7 +34,7 @@ router.get("/dashboard/stats", requireAuth, async (req, res): Promise<void> => {
     }
 
     const caseStudies = csResult.data ?? [];
-    const questionnaires = (qResult.data ?? []).map((q) => ({
+    const questionnaires = (qResult.data ?? []).map((q: any) => ({
       id: q.id,
       client_name: q.company_name || q.name,
       sector: q.sector,
@@ -42,26 +42,26 @@ router.get("/dashboard/stats", requireAuth, async (req, res): Promise<void> => {
     }));
 
     // Get unique sectors from case studies
-    const sectors = new Set(caseStudies.map((cs) => cs.sector));
+    const sectors = new Set(caseStudies.map((cs: any) => cs.sector));
     const sectorsCount = sectors.size;
 
     // Find the most recent item's date
     const allDates = [
-      ...caseStudies.map((cs) => cs.created_at),
-      ...questionnaires.map((q) => q.created_at),
+      ...caseStudies.map((cs: any) => cs.created_at),
+      ...questionnaires.map((q: any) => q.created_at),
     ].filter(Boolean);
     allDates.sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
     const lastUpdated = allDates[0] ?? null;
 
     // Build recent activity feed (last 5 items combined, sorted by date)
-    const csActivity = caseStudies.map((cs) => ({
+    const csActivity = caseStudies.map((cs: any) => ({
       type: "case_study",
       id: cs.id,
       title: cs.client_name,
       sector: cs.sector,
       createdAt: cs.created_at,
     }));
-    const qActivity = questionnaires.map((q) => ({
+    const qActivity = questionnaires.map((q: any) => ({
       type: "questionnaire",
       id: q.id,
       title: q.client_name,
@@ -75,7 +75,7 @@ router.get("/dashboard/stats", requireAuth, async (req, res): Promise<void> => {
     // Compute sector breakdown percentages
     const sectorCounts: Record<string, number> = {};
     let totalSectors = 0;
-    caseStudies.forEach((cs) => {
+    caseStudies.forEach((cs: any) => {
       if (cs.sector) {
         sectorCounts[cs.sector] = (sectorCounts[cs.sector] || 0) + 1;
         totalSectors++;
