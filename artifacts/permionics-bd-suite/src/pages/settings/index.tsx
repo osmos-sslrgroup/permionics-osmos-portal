@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
-import { Settings, Shield, KeyRound, Database, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Settings, Shield, KeyRound, Database, CheckCircle2, XCircle, Loader2, User } from "lucide-react";
 import { useState, useEffect } from "react";
 import { UserManagementPage } from "./UserManagementPage";
 
@@ -24,7 +24,9 @@ const passwordSchema = z.object({
 export default function SettingsPage() {
   const { toast } = useToast();
   const { data: meData } = useGetMe();
-  const isAdmin = (meData as any)?.user?.role === "admin";
+  const currentUser = (meData as any)?.user;
+  const currentRole = currentUser?.role || "admin";
+  const isAdmin = currentRole === "admin";
 
   const changePasswordMutation = useChangePassword();
   const [status, setStatus] = useState<{ database: boolean; llm: boolean } | null>(null);
@@ -32,18 +34,20 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<"security" | "users">("security");
 
   useEffect(() => {
-    customFetch<{ database: boolean; llm: boolean }>("/api/settings/status")
-      .then((data) => {
-        setStatus(data);
-      })
-      .catch((err) => {
-        console.error("Failed to load status", err);
-        setStatus({ database: true, llm: true });
-      })
-      .finally(() => {
-        setIsLoadingStatus(false);
-      });
-  }, []);
+    if (isAdmin) {
+      customFetch<{ database: boolean; llm: boolean }>("/api/settings/status")
+        .then((data) => {
+          setStatus(data);
+        })
+        .catch((err) => {
+          console.error("Failed to load status", err);
+          setStatus({ database: true, llm: true });
+        })
+        .finally(() => {
+          setIsLoadingStatus(false);
+        });
+    }
+  }, [isAdmin]);
 
   const form = useForm<z.infer<typeof passwordSchema>>({
     resolver: zodResolver(passwordSchema),
@@ -87,7 +91,11 @@ export default function SettingsPage() {
         <Settings className="h-8 w-8 text-primary" />
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>Settings</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Configure security, authentication passphrases, and view system status.</p>
+          <p className="text-muted-foreground mt-1 text-sm">
+            {isAdmin
+              ? "Configure security, multi-role user accounts, and view system status."
+              : "Manage your account profile and security credentials."}
+          </p>
         </div>
       </div>
 
@@ -99,7 +107,7 @@ export default function SettingsPage() {
             className={`w-full justify-start font-semibold rounded-lg ${activeTab === "security" ? "text-primary bg-primary/10" : "text-muted-foreground"}`}
           >
             <Shield className="mr-2 h-4 w-4" />
-            Security & Status
+            {isAdmin ? "Security & Status" : "Account & Password"}
           </Button>
 
           {/* User & Operator Roles tab only visible to Admin */}
@@ -120,14 +128,31 @@ export default function SettingsPage() {
             <UserManagementPage />
           ) : (
             <>
+              {/* Account Details Header for Non-Admin / Admin */}
               <Card className="shadow-sm">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <KeyRound className="h-5 w-5" />
-                    Change Master Password
-                  </CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      {isAdmin ? <KeyRound className="h-5 w-5" /> : <User className="h-5 w-5" />}
+                      {isAdmin ? "Change Master Password" : "Account Settings"}
+                    </CardTitle>
+                    <Badge
+                      variant="outline"
+                      className={`uppercase text-[10px] font-bold ${
+                        currentRole === "admin"
+                          ? "bg-purple-50 text-purple-700 border-purple-200"
+                          : currentRole === "operator"
+                          ? "bg-blue-50 text-blue-700 border-blue-200"
+                          : "bg-gray-100 text-gray-700 border-gray-200"
+                      }`}
+                    >
+                      {currentRole} Role
+                    </Badge>
+                  </div>
                   <CardDescription>
-                    Update the access password for your session.
+                    {isAdmin
+                      ? "Update the master access password for the portal."
+                      : `Logged in as ${currentUser?.email || "User"}. Update your account password below.`}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -177,65 +202,68 @@ export default function SettingsPage() {
                         className="mt-2"
                         disabled={changePasswordMutation.isPending}
                       >
-                        {changePasswordMutation.isPending ? "Updating..." : "Update Passphrase"}
+                        {changePasswordMutation.isPending ? "Updating..." : "Update Password"}
                       </Button>
                     </form>
                   </Form>
                 </CardContent>
               </Card>
 
-              <Card className="shadow-sm">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Database className="h-5 w-5" />
-                    System Integration Status
-                  </CardTitle>
-                  <CardDescription>
-                    View the connection status for internal APIs and services.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <h4 className="font-medium">Core Database</h4>
-                      <p className="text-sm text-muted-foreground">PostgreSQL / In-Memory Mock Storage</p>
+              {/* System Integration Status: Strictly Visible ONLY to Admin */}
+              {isAdmin && (
+                <Card className="shadow-sm">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Database className="h-5 w-5" />
+                      System Integration Status
+                    </CardTitle>
+                    <CardDescription>
+                      View the connection status for internal APIs and database services.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <h4 className="font-medium">Core Database</h4>
+                        <p className="text-sm text-muted-foreground">PostgreSQL / In-Memory Mock Storage</p>
+                      </div>
+                      {isLoadingStatus ? (
+                        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                      ) : status?.database ? (
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1 flex items-center">
+                          <CheckCircle2 className="h-3 w-3" /> Connected
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 gap-1 flex items-center">
+                          <XCircle className="h-3 w-3" /> Disconnected
+                        </Badge>
+                      )}
                     </div>
-                    {isLoadingStatus ? (
-                      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                    ) : status?.database ? (
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1 flex items-center">
-                        <CheckCircle2 className="h-3 w-3" /> Connected
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 gap-1 flex items-center">
-                        <XCircle className="h-3 w-3" /> Disconnected
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <h4 className="font-medium">LLM Assistant API</h4>
-                      <p className="text-sm text-muted-foreground">Groq & Gemini RAG Failover Engine</p>
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <h4 className="font-medium">LLM Assistant API</h4>
+                        <p className="text-sm text-muted-foreground">Groq & Gemini RAG Failover Engine</p>
+                      </div>
+                      {isLoadingStatus ? (
+                        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                      ) : status?.llm ? (
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1 flex items-center">
+                          <CheckCircle2 className="h-3 w-3" /> Connected
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 gap-1 flex items-center">
+                          <XCircle className="h-3 w-3" /> Disconnected
+                        </Badge>
+                      )}
                     </div>
-                    {isLoadingStatus ? (
-                      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                    ) : status?.llm ? (
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1 flex items-center">
-                        <CheckCircle2 className="h-3 w-3" /> Connected
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 gap-1 flex items-center">
-                        <XCircle className="h-3 w-3" /> Disconnected
-                      </Badge>
-                    )}
-                  </div>
-                </CardContent>
-                <CardFooter className="bg-muted/50 border-t py-3">
-                  <p className="text-xs text-muted-foreground w-full text-center">
-                    Permionics Insights Portal v2.0.0 — RBAC Multi-Role Auth
-                  </p>
-                </CardFooter>
-              </Card>
+                  </CardContent>
+                  <CardFooter className="bg-muted/50 border-t py-3">
+                    <p className="text-xs text-muted-foreground w-full text-center">
+                      Permionics Insights Portal v2.0.0 — RBAC Multi-Role Auth
+                    </p>
+                  </CardFooter>
+                </Card>
+              )}
             </>
           )}
         </div>
