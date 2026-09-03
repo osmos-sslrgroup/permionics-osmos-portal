@@ -199,20 +199,67 @@ export default function EditorPage({ projectId }: Props) {
               <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: saveColor }} />
               {saveLabel}
             </span>
-            <button
-              onClick={() => printCaseStudy()}
-              style={{
-                background: pal.primary, color: "white", border: "none", borderRadius: "7px",
-                padding: "7px 16px", fontSize: "12px", cursor: "pointer",
-                display: "flex", alignItems: "center", gap: "6px", fontWeight: 600,
-                boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
-              }}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="6 9 6 2 18 2 18 9" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><rect x="6" y="14" width="12" height="8" />
-              </svg>
-              Print / Save PDF
-            </button>
+            <div className="relative group">
+              <button
+                style={{
+                  background: pal.primary, color: "white", border: "none", borderRadius: "7px",
+                  padding: "7px 16px", fontSize: "12px", cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: "6px", fontWeight: 600,
+                  boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+                }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Export / Print ▾
+              </button>
+              <div className="absolute right-0 mt-1 w-48 bg-card border border-border rounded-md shadow-lg hidden group-hover:block z-50 p-1">
+                <button
+                  onClick={() => printCaseStudy()}
+                  className="w-full text-left px-3 py-2 text-xs text-foreground hover:bg-muted rounded flex items-center gap-2 font-medium"
+                >
+                  📄 Multi-Page A4 PDF
+                </button>
+                <button
+                  onClick={async () => {
+                    const { exportToDocx } = await import("./creator_utils/exportUtils");
+                    exportToDocx();
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs text-foreground hover:bg-muted rounded flex items-center gap-2 font-medium"
+                >
+                  📝 Word Document (.docx)
+                </button>
+                <button
+                  onClick={async () => {
+                    const { exportToImage } = await import("./creator_utils/exportUtils");
+                    exportToImage("png");
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs text-foreground hover:bg-muted rounded flex items-center gap-2 font-medium"
+                >
+                  🖼️ PNG Image
+                </button>
+                <button
+                  onClick={async () => {
+                    const { exportToImage } = await import("./creator_utils/exportUtils");
+                    exportToImage("jpeg");
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs text-foreground hover:bg-muted rounded flex items-center gap-2 font-medium"
+                >
+                  🖼️ JPEG Image
+                </button>
+                <button
+                  onClick={async () => {
+                    const { triggerNativePrint } = await import("./creator_utils/exportUtils");
+                    triggerNativePrint();
+                  }}
+                  className="w-full text-left px-3 py-2 text-xs text-foreground hover:bg-muted rounded flex items-center gap-2 font-medium border-t border-border mt-1 pt-2"
+                >
+                  🖨️ Direct Print
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
