@@ -55,9 +55,42 @@ app.use(
     credentials: true,
   }),
 );
+import rateLimit from "express-rate-limit";
+
+// Rate Limiters for Security & API Cost Control
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // max 100 requests per IP per window
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, please try again later." },
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // max 10 login attempts per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many login attempts. Please try again after 15 minutes." },
+});
+
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10, // max 10 AI queries per minute
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "AI rate limit reached. Please wait a minute before asking another question." },
+});
+
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(cookieParser());
+
+// Apply Rate Limiters
+app.use("/api", globalLimiter);
+app.use("/api/auth/login", authLimiter);
+app.use("/api/chat", aiLimiter);
+app.use("/api/assistant/upload", aiLimiter);
 
 app.use("/api", router);
 app.use("/api", caseStudiesRoutes);
