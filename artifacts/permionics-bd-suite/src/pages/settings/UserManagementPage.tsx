@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { customFetch } from "@workspace/api-client-react";
+import { customFetch, useGetMe } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,9 @@ interface UserItem {
 
 export function UserManagementPage() {
   const { toast } = useToast();
+  const { data: meData } = useGetMe();
+  const isAdmin = (meData as any)?.user?.role === "admin";
+
   const [users, setUsers] = useState<UserItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -24,6 +27,7 @@ export function UserManagementPage() {
   const [isCreating, setIsCreating] = useState(false);
 
   const fetchUsers = async () => {
+    if (!isAdmin) return;
     setLoading(true);
     try {
       const res = await customFetch("/api/auth/users");
@@ -36,8 +40,21 @@ export function UserManagementPage() {
   };
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    if (isAdmin) {
+      fetchUsers();
+    }
+  }, [isAdmin]);
+
+  if (!isAdmin) {
+    return (
+      <div className="bg-card border border-border rounded-lg p-6 text-center">
+        <h3 className="text-sm font-bold text-foreground mb-1">Administrator Access Required</h3>
+        <p className="text-xs text-muted-foreground">
+          User and Operator account management is restricted strictly to Portal Administrators.
+        </p>
+      </div>
+    );
+  }
 
   const handleCreateOperator = async (e: React.FormEvent) => {
     e.preventDefault();

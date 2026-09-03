@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useChangePassword, customFetch } from "@workspace/api-client-react";
+import { useChangePassword, customFetch, useGetMe } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Badge } from "@/components/ui/badge";
 import { Settings, Shield, KeyRound, Database, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { UserManagementPage } from "./UserManagementPage";
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),
@@ -20,10 +21,11 @@ const passwordSchema = z.object({
   path: ["confirmPassword"],
 });
 
-import { UserManagementPage } from "./UserManagementPage";
-
 export default function SettingsPage() {
   const { toast } = useToast();
+  const { data: meData } = useGetMe();
+  const isAdmin = (meData as any)?.user?.role === "admin";
+
   const changePasswordMutation = useChangePassword();
   const [status, setStatus] = useState<{ database: boolean; llm: boolean } | null>(null);
   const [isLoadingStatus, setIsLoadingStatus] = useState(true);
@@ -85,7 +87,7 @@ export default function SettingsPage() {
         <Settings className="h-8 w-8 text-primary" />
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>Settings</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Configure security, multi-role user accounts, and view system status.</p>
+          <p className="text-muted-foreground mt-1 text-sm">Configure security, authentication passphrases, and view system status.</p>
         </div>
       </div>
 
@@ -99,18 +101,22 @@ export default function SettingsPage() {
             <Shield className="mr-2 h-4 w-4" />
             Security & Status
           </Button>
-          <Button 
-            variant="ghost" 
-            onClick={() => setActiveTab("users")}
-            className={`w-full justify-start font-semibold rounded-lg ${activeTab === "users" ? "text-primary bg-primary/10" : "text-muted-foreground"}`}
-          >
-            <KeyRound className="mr-2 h-4 w-4" />
-            User & Operator Roles
-          </Button>
+
+          {/* User & Operator Roles tab only visible to Admin */}
+          {isAdmin && (
+            <Button 
+              variant="ghost" 
+              onClick={() => setActiveTab("users")}
+              className={`w-full justify-start font-semibold rounded-lg ${activeTab === "users" ? "text-primary bg-primary/10" : "text-muted-foreground"}`}
+            >
+              <KeyRound className="mr-2 h-4 w-4" />
+              User & Operator Roles
+            </Button>
+          )}
         </div>
 
         <div className="md:col-span-2 space-y-6">
-          {activeTab === "users" ? (
+          {activeTab === "users" && isAdmin ? (
             <UserManagementPage />
           ) : (
             <>
