@@ -54,6 +54,7 @@ Thumbs.db
 .env.*.local
 .vercel
 .env*
+!.env.example
 
 # AI Files
 GEMINI.md

@@ -27,7 +27,7 @@ export function UserManagementPage() {
     setLoading(true);
     try {
       const res = await customFetch("/api/auth/users");
-      setUsers(res || []);
+      setUsers((res as UserItem[]) || []);
     } catch (err) {
       console.error(err);
     } finally {

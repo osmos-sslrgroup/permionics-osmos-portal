@@ -44,10 +44,10 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      const res = await customFetch("/api/auth/login", {
+      const res = (await customFetch("/api/auth/login", {
         method: "POST",
         body: JSON.stringify({ email: email ? email.trim() : undefined, password, remember: true }),
-      });
+      })) as any;
 
       if (res.authenticated) {
         localStorage.setItem("theme", "light");
@@ -78,10 +78,10 @@ export default function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      const res = await customFetch("/api/auth/signup", {
+      const res = (await customFetch("/api/auth/signup", {
         method: "POST",
         body: JSON.stringify({ name: name.trim(), email: email.trim(), password }),
-      });
+      })) as any;
 
       if (res.authenticated) {
         toast({

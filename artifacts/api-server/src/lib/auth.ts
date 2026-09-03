@@ -90,7 +90,7 @@ export async function getAdminPassword(): Promise<string> {
 
     if (data && data.notes) {
       cachedAdminPassword = data.notes;
-      return cachedAdminPassword;
+      return data.notes;
     }
   } catch (err) {
     // Fail silently in mock mode
