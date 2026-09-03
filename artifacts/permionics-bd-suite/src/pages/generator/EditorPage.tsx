@@ -94,7 +94,7 @@ export default function EditorPage({ projectId }: Props) {
         capacity: data.capacity || "",
         results: data.cards ? data.cards.map(c => `${c.number}: ${c.label}`).join(" | ") : "",
         testimonial: data.handshakeCap || null,
-        tags: data.techList ? data.techList.split("\n").map(t => t.trim()).filter(Boolean) : [],
+        richData: { ...data, palette },
         fullText: `${data.intro || ""}\n\n${data.challengeProblem || ""}\n\n${data.solDesign || ""}\n\n${data.conclusions || ""}`.trim(),
       };
 

@@ -25,6 +25,7 @@ function mapCaseStudyRow(row: any) {
     testimonial: row.testimonial,
     tags: row.tags || [],
     fullText: row.full_text || "",
+    richData: row.rich_data || null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -53,21 +54,33 @@ router.get("/case-studies", requireAuth, async (req, res): Promise<void> => {
       dbQuery = dbQuery.ilike("technology_stack", `%${technology}%`);
     }
 
-    if (search) {
-      dbQuery = dbQuery.or(
-        `client_name.ilike.%${search}%,challenge.ilike.%${search}%,solution.ilike.%${search}%,technology_stack.ilike.%${search}%`
-      );
-    }
+    dbQuery = dbQuery.order("created_at", { ascending: false });
 
-    const { data, error } = await dbQuery.order("updated_at", { ascending: false });
+    const { data, error } = await dbQuery;
 
     if (error) {
-      req.log.error({ err: error }, "Failed to list case studies");
+      req.log.error({ err: error }, "Failed to fetch case studies");
       res.status(500).json({ error: "Database error" });
       return;
     }
 
-    res.json((data ?? []).map(mapCaseStudyRow));
+    let results = (data ?? []).map(mapCaseStudyRow);
+
+    if (search && search.trim()) {
+      const q = search.toLowerCase().trim();
+      results = results.filter(
+        (cs: any) =>
+          cs.clientName.toLowerCase().includes(q) ||
+          cs.sector.toLowerCase().includes(q) ||
+          cs.challenge.toLowerCase().includes(q) ||
+          cs.solution.toLowerCase().includes(q) ||
+          cs.technologyStack.toLowerCase().includes(q) ||
+          cs.fullText.toLowerCase().includes(q) ||
+          cs.tags.some((t: string) => t.toLowerCase().includes(q))
+      );
+    }
+
+    res.json(results);
   } catch (err) {
     req.log.error({ err }, "GET /case-studies error");
     res.status(500).json({ error: "Internal server error" });
@@ -90,6 +103,7 @@ router.post("/case-studies", requireAuth, async (req, res): Promise<void> => {
       testimonial: body.testimonial || null,
       tags: body.tags || [],
       full_text: body.fullText || "",
+      rich_data: body.richData || null,
     };
 
     const { data: row, error } = await supabase
@@ -204,6 +218,7 @@ router.put("/case-studies/:id", requireAuth, async (req, res): Promise<void> => 
     if (body.testimonial !== undefined) patch.testimonial = body.testimonial;
     if (body.tags !== undefined) patch.tags = body.tags;
     if (body.fullText !== undefined) patch.full_text = body.fullText;
+    if (body.richData !== undefined) patch.rich_data = body.richData;
 
     const { data: row, error } = await supabase
       .from("case_studies")

@@ -136,19 +136,46 @@ export function Sidebar({ data, palette, onPaletteChange, onChange, onPrint, onB
           className="relative border-2 border-dashed border-border rounded-lg p-2 text-center cursor-pointer hover:border-primary transition-colors"
           onClick={() => inputRef.current?.click()}
         >
-          <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleImg(e, imgField)} />
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              handleImg(e, imgField);
+              if (inputRef.current) inputRef.current.value = "";
+            }}
+          />
           {img ? (
             <div>
               <img src={img} alt="preview" className="mx-auto object-cover rounded mb-1" style={{ height: "56px", width: "100%", objectFit: "cover" }} />
-              <span className="text-[10px] text-primary font-medium">Click to change</span>
+              <div className="flex items-center justify-center gap-2 mt-1">
+                <span className="text-[10px] text-primary font-medium hover:underline">Click to change</span>
+              </div>
             </div>
           ) : (
             <div className="py-1">
               <div className="text-muted-foreground text-[10px] mb-0.5">No photo yet</div>
-              <span className="text-[10px] text-primary font-medium">Click to upload</span>
+              <span className="text-[10px] text-primary font-medium hover:underline">Click to upload</span>
             </div>
           )}
         </div>
+        {img && (
+          <button
+            type="button"
+            onClick={() => {
+              set(imgField, null);
+              if (inputRef.current) inputRef.current.value = "";
+            }}
+            className="w-full text-[10px] font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-900/50 border border-red-200 dark:border-red-800 rounded py-1 transition-colors flex items-center justify-center gap-1"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            Remove Photo
+          </button>
+        )}
         <div>
           <div className="flex justify-between items-center mb-1">
             <span className={lbl + " mb-0"}>Height</span>
