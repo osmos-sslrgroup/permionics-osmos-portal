@@ -52,6 +52,18 @@ ALTER TABLE case_studies DISABLE ROW LEVEL SECURITY;
 ALTER TABLE questionnaires DISABLE ROW LEVEL SECURITY;
 ALTER TABLE questionnaire_projects DISABLE ROW LEVEL SECURITY;
 
+-- ─── Users table (for 3-Tier Multi-Role Auth: admin, operator, user) ───────────
+CREATE TABLE IF NOT EXISTS users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  name TEXT NOT NULL DEFAULT '',
+  role TEXT NOT NULL CHECK (role IN ('admin', 'operator', 'user')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+ALTER TABLE users DISABLE ROW LEVEL SECURITY;
+
 -- ─── Assistant Documents table (for PDF library/OCR context) ──────────────────
 CREATE TABLE IF NOT EXISTS assistant_documents (
   id BIGSERIAL PRIMARY KEY,
