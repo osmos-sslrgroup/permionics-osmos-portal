@@ -36,7 +36,7 @@ export default defineConfig({
     proxy: {
       // In dev, proxy /api calls to the API server so you don't need CORS config
       '/api': {
-        target: process.env.VITE_API_URL ?? 'http://localhost:8080',
+        target: process.env.VITE_API_URL ?? 'http://127.0.0.1:5000',
         changeOrigin: true,
       },
     },
