@@ -72,6 +72,10 @@ export function checkPassword(plain: string, adminPassword: string): boolean {
   );
 }
 
+export function getAdminEmail(): string {
+  return (process.env["ADMIN_EMAIL"] || "admin@permionics.com").toLowerCase().trim();
+}
+
 let cachedAdminPassword: string | null = null;
 
 export async function getAdminPassword(): Promise<string> {

@@ -7,6 +7,7 @@ import {
   verifyToken,
   checkPassword,
   getAdminPassword,
+  getAdminEmail,
   hashPassword,
   verifyPasswordHash,
 } from "../lib/auth";
@@ -24,10 +25,14 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     return;
   }
 
-  // 1. Check if it's the Admin password
+  // 1. Check if it's the Admin email and password
+  const adminEmail = getAdminEmail();
   const adminPassword = await getAdminPassword();
-  if (checkPassword(password, adminPassword || "")) {
-    const token = await signToken({ id: "admin-001", email: "admin@permionics.com", role: "admin" });
+  const reqEmail = email ? email.toLowerCase().trim() : "";
+  const isEmailAdminMatch = !reqEmail || reqEmail === adminEmail || reqEmail === "admin";
+
+  if (isEmailAdminMatch && checkPassword(password, adminPassword || "")) {
+    const token = await signToken({ id: "admin-001", email: adminEmail, role: "admin" });
     setSessionCookie(res, token, !!remember);
     res.json({ authenticated: true, role: "admin", message: "Admin login successful" });
     return;
