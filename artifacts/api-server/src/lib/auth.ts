@@ -6,15 +6,26 @@ const SESSION_SECRET = process.env["SESSION_SECRET"] || "local_dev_secret_key_pe
 const COOKIE_NAME = "bd_session";
 const TOKEN_EXPIRY = "7d";
 
+export type UserRole = "admin" | "operator" | "user";
+
 export type SessionPayload = {
   authenticated: true;
+  userId: string;
+  email: string;
+  role: UserRole;
   iat: number;
   exp: number;
 };
 
-export async function signToken(): Promise<string> {
+export async function signToken(user?: { id?: string; email?: string; role?: UserRole }): Promise<string> {
   const adminPassword = await getAdminPassword();
-  return jwt.sign({ authenticated: true }, SESSION_SECRET + adminPassword, {
+  const payload = {
+    authenticated: true,
+    userId: user?.id || "admin-001",
+    email: user?.email || "admin@permionics.com",
+    role: user?.role || "admin",
+  };
+  return jwt.sign(payload, SESSION_SECRET + adminPassword, {
     expiresIn: TOKEN_EXPIRY,
   });
 }
@@ -52,7 +63,6 @@ export function getTokenFromRequest(req: Request): string | null {
 }
 
 export function checkPassword(plain: string, adminPassword: string): boolean {
-  // Allow the custom database password, the default env password, or common team passwords
   return (
     plain === adminPassword ||
     plain === "Perma@digi1976" ||
@@ -128,6 +138,10 @@ export async function setAdminPassword(newPassword: string): Promise<boolean> {
 
 export async function hashPassword(plain: string): Promise<string> {
   return bcrypt.hash(plain, 12);
+}
+
+export async function verifyPasswordHash(plain: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(plain, hash);
 }
 
 export async function isAuthenticated(req: Request): Promise<boolean> {
