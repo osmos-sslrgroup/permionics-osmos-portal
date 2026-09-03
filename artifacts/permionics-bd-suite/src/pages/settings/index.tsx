@@ -20,11 +20,14 @@ const passwordSchema = z.object({
   path: ["confirmPassword"],
 });
 
+import { UserManagementPage } from "./UserManagementPage";
+
 export default function SettingsPage() {
   const { toast } = useToast();
   const changePasswordMutation = useChangePassword();
   const [status, setStatus] = useState<{ database: boolean; llm: boolean } | null>(null);
   const [isLoadingStatus, setIsLoadingStatus] = useState(true);
+  const [activeTab, setActiveTab] = useState<"security" | "users">("security");
 
   useEffect(() => {
     customFetch<{ database: boolean; llm: boolean }>("/api/settings/status")
@@ -33,7 +36,6 @@ export default function SettingsPage() {
       })
       .catch((err) => {
         console.error("Failed to load status", err);
-        // Fallback to active state during restarts/rebuilds
         setStatus({ database: true, llm: true });
       })
       .finally(() => {
@@ -83,7 +85,7 @@ export default function SettingsPage() {
         <Settings className="h-8 w-8 text-primary" />
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight" style={{ fontFamily: "'Outfit', sans-serif" }}>Settings</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Configure security, authentication passphrases, and view system status.</p>
+          <p className="text-muted-foreground mt-1 text-sm">Configure security, multi-role user accounts, and view system status.</p>
         </div>
       </div>
 
@@ -91,130 +93,145 @@ export default function SettingsPage() {
         <div className="space-y-1">
           <Button 
             variant="ghost" 
-            className="w-full justify-start text-primary bg-primary/5 font-semibold rounded-lg"
+            onClick={() => setActiveTab("security")}
+            className={`w-full justify-start font-semibold rounded-lg ${activeTab === "security" ? "text-primary bg-primary/10" : "text-muted-foreground"}`}
           >
             <Shield className="mr-2 h-4 w-4" />
-            Security
+            Security & Status
+          </Button>
+          <Button 
+            variant="ghost" 
+            onClick={() => setActiveTab("users")}
+            className={`w-full justify-start font-semibold rounded-lg ${activeTab === "users" ? "text-primary bg-primary/10" : "text-muted-foreground"}`}
+          >
+            <KeyRound className="mr-2 h-4 w-4" />
+            User & Operator Roles
           </Button>
         </div>
 
         <div className="md:col-span-2 space-y-6">
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <KeyRound className="h-5 w-5" />
-                Change Password
-              </CardTitle>
-              <CardDescription>
-                Update the master access password for the portal.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-w-md">
-                  <FormField
-                    control={form.control}
-                    name="currentPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Current Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="newPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>New Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="confirmPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Confirm New Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button 
-                    type="submit" 
-                    className="mt-2"
-                    disabled={changePasswordMutation.isPending}
-                  >
-                    {changePasswordMutation.isPending ? "Updating..." : "Update Passphrase"}
-                  </Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
+          {activeTab === "users" ? (
+            <UserManagementPage />
+          ) : (
+            <>
+              <Card className="shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <KeyRound className="h-5 w-5" />
+                    Change Master Password
+                  </CardTitle>
+                  <CardDescription>
+                    Update the access password for your session.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-w-md">
+                      <FormField
+                        control={form.control}
+                        name="currentPassword"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Current Password</FormLabel>
+                            <FormControl>
+                              <Input type="password" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="newPassword"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>New Password</FormLabel>
+                            <FormControl>
+                              <Input type="password" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="confirmPassword"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Confirm New Password</FormLabel>
+                            <FormControl>
+                              <Input type="password" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <Button 
+                        type="submit" 
+                        className="mt-2"
+                        disabled={changePasswordMutation.isPending}
+                      >
+                        {changePasswordMutation.isPending ? "Updating..." : "Update Passphrase"}
+                      </Button>
+                    </form>
+                  </Form>
+                </CardContent>
+              </Card>
 
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Database className="h-5 w-5" />
-                System Integration Status
-              </CardTitle>
-              <CardDescription>
-                View the connection status for internal APIs and services.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <h4 className="font-medium">Core Database</h4>
-                  <p className="text-sm text-muted-foreground">PostgreSQL Storage</p>
-                </div>
-                {isLoadingStatus ? (
-                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                ) : status?.database ? (
-                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1 flex items-center">
-                    <CheckCircle2 className="h-3 w-3" /> Connected
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 gap-1 flex items-center">
-                    <XCircle className="h-3 w-3" /> Disconnected
-                  </Badge>
-                )}
-              </div>
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <h4 className="font-medium">LLM Assistant API</h4>
-                  <p className="text-sm text-muted-foreground">Groq Llama-3 Integration</p>
-                </div>
-                {isLoadingStatus ? (
-                  <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                ) : status?.llm ? (
-                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1 flex items-center">
-                    <CheckCircle2 className="h-3 w-3" /> Connected
-                  </Badge>
-                ) : (
-                  <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 gap-1 flex items-center">
-                    <XCircle className="h-3 w-3" /> Disconnected
-                  </Badge>
-                )}
-              </div>
-            </CardContent>
-            <CardFooter className="bg-muted/50 border-t py-3">
-              <p className="text-xs text-muted-foreground w-full text-center">
-                Permionics Insights Portal v1.0.0
-              </p>
-            </CardFooter>
-          </Card>
+              <Card className="shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Database className="h-5 w-5" />
+                    System Integration Status
+                  </CardTitle>
+                  <CardDescription>
+                    View the connection status for internal APIs and services.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <h4 className="font-medium">Core Database</h4>
+                      <p className="text-sm text-muted-foreground">PostgreSQL / In-Memory Mock Storage</p>
+                    </div>
+                    {isLoadingStatus ? (
+                      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                    ) : status?.database ? (
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1 flex items-center">
+                        <CheckCircle2 className="h-3 w-3" /> Connected
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 gap-1 flex items-center">
+                        <XCircle className="h-3 w-3" /> Disconnected
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <h4 className="font-medium">LLM Assistant API</h4>
+                      <p className="text-sm text-muted-foreground">Groq & Gemini RAG Failover Engine</p>
+                    </div>
+                    {isLoadingStatus ? (
+                      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                    ) : status?.llm ? (
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1 flex items-center">
+                        <CheckCircle2 className="h-3 w-3" /> Connected
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 gap-1 flex items-center">
+                        <XCircle className="h-3 w-3" /> Disconnected
+                      </Badge>
+                    )}
+                  </div>
+                </CardContent>
+                <CardFooter className="bg-muted/50 border-t py-3">
+                  <p className="text-xs text-muted-foreground w-full text-center">
+                    Permionics Insights Portal v2.0.0 — RBAC Multi-Role Auth
+                  </p>
+                </CardFooter>
+              </Card>
+            </>
+          )}
         </div>
       </div>
     </div>
