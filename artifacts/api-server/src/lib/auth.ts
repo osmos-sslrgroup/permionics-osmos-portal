@@ -1,5 +1,4 @@
 import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
 import type { Request, Response } from "express";
 
 const SESSION_SECRET = process.env["SESSION_SECRET"] || "local_dev_secret_key_permionics_2026";
@@ -132,14 +131,6 @@ export async function setAdminPassword(newPassword: string): Promise<boolean> {
   } catch (err) {
     return false;
   }
-}
-
-export async function hashPassword(plain: string): Promise<string> {
-  return bcrypt.hash(plain, 12);
-}
-
-export async function verifyPasswordHash(plain: string, hash: string): Promise<boolean> {
-  return bcrypt.compare(plain, hash);
 }
 
 export async function isAuthenticated(req: Request): Promise<boolean> {

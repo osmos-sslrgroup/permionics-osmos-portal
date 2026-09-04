@@ -8,11 +8,9 @@ import {
   checkPassword,
   getAdminPassword,
   getAdminEmail,
-  hashPassword,
-  verifyPasswordHash,
 } from "../lib/auth";
 import { supabase } from "../lib/supabase";
-import { firebaseAdmin } from "../lib/firebase-admin";
+import { firebaseAuth } from "../lib/firebase-admin";
 import { requireRole } from "../middlewares/requireRole";
 
 const router: IRouter = Router();
@@ -27,7 +25,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   }
 
   try {
-    const decodedToken = await firebaseAdmin.auth().verifyIdToken(idToken);
+    const decodedToken = await firebaseAuth.verifyIdToken(idToken);
     const firebaseUid = decodedToken.uid;
     const email = decodedToken.email;
 
@@ -82,7 +80,7 @@ router.post("/auth/signup", async (req, res): Promise<void> => {
   try {
     let firebaseUid = "";
     try {
-      const fbUser = await firebaseAdmin.auth().createUser({
+      const fbUser = await firebaseAuth.createUser({
         email: cleanEmail,
         password,
         displayName: name || "User"
@@ -96,13 +94,11 @@ router.post("/auth/signup", async (req, res): Promise<void> => {
       throw fbErr;
     }
 
-    const passwordHash = await hashPassword(password);
     const { data, error } = await supabase
       .from("users")
       .insert({
         name: name || "",
         email: cleanEmail,
-        password_hash: passwordHash,
         role: "user",
         firebase_uid: firebaseUid
       })
@@ -123,9 +119,8 @@ router.post("/auth/signup", async (req, res): Promise<void> => {
   }
 });
 
-// Clear the needs_password_reset flag and sync password
+// Clear the needs_password_reset flag
 router.post("/auth/reset-flag", async (req, res): Promise<void> => {
-  const { password } = req.body;
   const token = getTokenFromRequest(req);
   if (!token) {
     res.status(401).json({ error: "Unauthorized" });
@@ -140,10 +135,6 @@ router.post("/auth/reset-flag", async (req, res): Promise<void> => {
     }
 
     const updates: any = { needs_password_reset: false };
-    if (password) {
-      const { hashPassword } = await import("../lib/auth");
-      updates.password_hash = await hashPassword(password);
-    }
 
     const { error } = await supabase
       .from("users")
@@ -171,7 +162,7 @@ router.post("/auth/operator", requireRole(["admin"]), async (req, res): Promise<
   try {
     let firebaseUid = "";
     try {
-      const fbUser = await firebaseAdmin.auth().createUser({
+      const fbUser = await firebaseAuth.createUser({
         email: cleanEmail,
         password,
         displayName: name || "Operator"
@@ -179,22 +170,20 @@ router.post("/auth/operator", requireRole(["admin"]), async (req, res): Promise<
       firebaseUid = fbUser.uid;
     } catch (fbErr: any) {
       if (fbErr.code === "auth/email-already-exists") {
-         const fbUser = await firebaseAdmin.auth().getUserByEmail(cleanEmail);
+         const fbUser = await firebaseAuth.getUserByEmail(cleanEmail);
          firebaseUid = fbUser.uid;
          // Ensure password is set correctly for existing Firebase user if we are reclaiming
-         await firebaseAdmin.auth().updateUser(firebaseUid, { password });
+         await firebaseAuth.updateUser(firebaseUid, { password });
       } else {
          throw fbErr;
       }
     }
 
-    const passwordHash = await hashPassword(password);
     const { data, error } = await supabase
       .from("users")
       .insert({
         name: name || "Operator",
         email: cleanEmail,
-        password_hash: passwordHash,
         role: "operator",
         firebase_uid: firebaseUid,
         needs_password_reset: true
@@ -208,7 +197,6 @@ router.post("/auth/operator", requireRole(["admin"]), async (req, res): Promise<
         const { data: updatedData, error: updateError } = await supabase
            .from("users")
            .update({
-             password_hash: passwordHash,
              firebase_uid: firebaseUid,
              needs_password_reset: true
            })
@@ -266,7 +254,7 @@ router.post("/auth/users/:id/block", requireRole(["admin"]), async (req, res): P
     }
 
     if (user.firebase_uid) {
-      await firebaseAdmin.auth().updateUser(user.firebase_uid, { disabled: blocked });
+      await firebaseAuth.updateUser(user.firebase_uid, { disabled: blocked });
     }
 
     const { error } = await supabase.from("users").update({ is_blocked: blocked }).eq("id", req.params.id);
@@ -284,7 +272,7 @@ router.delete("/auth/users/:id", requireRole(["admin"]), async (req, res): Promi
     const { data: user } = await supabase.from("users").select("firebase_uid").eq("id", req.params.id).single();
     if (user?.firebase_uid) {
       try {
-        await firebaseAdmin.auth().deleteUser(user.firebase_uid);
+        await firebaseAuth.deleteUser(user.firebase_uid);
       } catch (fbErr: any) {
         if (fbErr.code !== "auth/user-not-found") throw fbErr;
       }

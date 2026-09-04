@@ -1,18 +1,19 @@
-import admin from "firebase-admin";
+import { initializeApp, getApps, cert, applicationDefault } from "firebase-admin/app";
+import { getAuth, Auth } from "firebase-admin/auth";
 
-const initFirebaseAdmin = () => {
-  if (admin.apps.length > 0) return admin;
+const initFirebaseAdmin = (): Auth => {
+  if (getApps().length > 0) return getAuth();
 
   try {
     let credential;
     if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-        credential = admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY));
+        credential = cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY));
     } else {
         console.warn("FIREBASE_SERVICE_ACCOUNT_KEY not found in environment variables. Firebase Admin might not initialize correctly if not in GCP environment.");
-        credential = admin.credential.applicationDefault();
+        credential = applicationDefault();
     }
     
-    admin.initializeApp({
+    initializeApp({
       credential,
     });
     console.log("Firebase Admin initialized successfully.");
@@ -20,7 +21,7 @@ const initFirebaseAdmin = () => {
     console.error("Firebase Admin initialization error", error);
   }
   
-  return admin;
+  return getAuth();
 };
 
-export const firebaseAdmin = initFirebaseAdmin();
+export const firebaseAuth = initFirebaseAdmin();

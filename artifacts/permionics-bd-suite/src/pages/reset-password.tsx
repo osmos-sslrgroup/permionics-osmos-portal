@@ -36,8 +36,7 @@ export default function ResetPasswordPage() {
 
       // Clear the needs_password_reset flag in our Supabase DB
       await customFetch("/api/auth/reset-flag", {
-        method: "POST",
-        body: JSON.stringify({ password }) // We also pass the new password to update password_hash in DB
+        method: "POST"
       });
 
       toast({ title: "Success", description: "Password updated successfully. You can now use the portal." });

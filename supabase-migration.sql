@@ -56,7 +56,6 @@ ALTER TABLE questionnaire_projects DISABLE ROW LEVEL SECURITY;
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT UNIQUE NOT NULL,
-  password_hash TEXT NOT NULL,
   name TEXT NOT NULL DEFAULT '',
   role TEXT NOT NULL CHECK (role IN ('admin', 'operator', 'user')),
   firebase_uid TEXT UNIQUE,
