@@ -63,13 +63,7 @@ export function getTokenFromRequest(req: Request): string | null {
 }
 
 export function checkPassword(plain: string, adminPassword: string): boolean {
-  return (
-    plain === adminPassword ||
-    plain === "Perma@digi1976" ||
-    plain === "Permionics@1012" ||
-    plain === "permionics2026" ||
-    plain === "admin"
-  );
+  return plain === adminPassword;
 }
 
 export function getAdminEmail(): string {

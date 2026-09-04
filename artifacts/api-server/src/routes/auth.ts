@@ -17,52 +17,55 @@ import { requireRole } from "../middlewares/requireRole";
 
 const router: IRouter = Router();
 
-// Login endpoint: supports shared Admin password OR registered User/Operator email & password
+// Login endpoint: Authenticate via Firebase ID Token
 router.post("/auth/login", async (req, res): Promise<void> => {
-  const { email, password, remember } = req.body as { email?: string; password?: string; remember?: boolean };
+  const { idToken, remember } = req.body as { idToken?: string; remember?: boolean };
 
-  if (!password) {
-    res.status(400).json({ error: "Password is required" });
+  if (!idToken) {
+    res.status(400).json({ error: "Firebase ID token is required" });
     return;
   }
 
-  // 1. Check if it's the Admin email and password
-  const adminEmail = getAdminEmail();
-  const adminPassword = await getAdminPassword();
-  const reqEmail = email ? email.toLowerCase().trim() : "";
-  const isEmailAdminMatch = !reqEmail || reqEmail === adminEmail || reqEmail === "admin";
+  try {
+    const decodedToken = await firebaseAdmin.auth().verifyIdToken(idToken);
+    const firebaseUid = decodedToken.uid;
+    const email = decodedToken.email;
 
-  if (isEmailAdminMatch && checkPassword(password, adminPassword || "")) {
-    const token = await signToken({ id: "admin-001", email: adminEmail, role: "admin" });
-    setSessionCookie(res, token, !!remember);
-    res.json({ authenticated: true, role: "admin", message: "Admin login successful" });
-    return;
-  }
+    // Fetch user from Supabase to get role and check needs_password_reset
+    const { data: user, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("firebase_uid", firebaseUid)
+      .single();
 
-  // 2. Otherwise check against registered users table (by email or name)
-  if (email) {
-    try {
-      const { data: user, error } = await supabase
-        .from("users")
-        .select("*")
-        .eq("email", email.toLowerCase().trim())
-        .single();
-
-      if (user && user.password_hash) {
-        const isMatch = await verifyPasswordHash(password, user.password_hash);
-        if (isMatch) {
-          const token = await signToken({ id: String(user.id), email: user.email, role: user.role });
+    if (error || !user) {
+       // Fallback by email if they were created before firebase_uid was saved (e.g. legacy admin)
+       const { data: userByEmail } = await supabase
+         .from("users")
+         .select("*")
+         .eq("email", email?.toLowerCase().trim())
+         .single();
+         
+       if (userByEmail) {
+          // Sync UID
+          await supabase.from("users").update({ firebase_uid: firebaseUid }).eq("id", userByEmail.id);
+          const token = await signToken({ id: String(userByEmail.id), email: userByEmail.email, role: userByEmail.role });
           setSessionCookie(res, token, !!remember);
-          res.json({ authenticated: true, role: user.role, message: `${user.role} login successful` });
+          res.json({ authenticated: true, role: userByEmail.role, needsReset: userByEmail.needs_password_reset, message: "Login successful" });
           return;
-        }
-      }
-    } catch (err) {
-      req.log.error({ err }, "Database user auth error");
+       }
+       
+       res.status(401).json({ error: "User not found in database." });
+       return;
     }
-  }
 
-  res.status(401).json({ error: "Invalid email or password" });
+    const token = await signToken({ id: String(user.id), email: user.email, role: user.role });
+    setSessionCookie(res, token, !!remember);
+    res.json({ authenticated: true, role: user.role, needsReset: user.needs_password_reset, message: "Login successful" });
+  } catch (err) {
+    req.log.error({ err }, "Firebase token verification error");
+    res.status(401).json({ error: "Invalid authentication token" });
+  }
 });
 
 // Public User Signup (Creates account with 'user' role)
@@ -77,6 +80,22 @@ router.post("/auth/signup", async (req, res): Promise<void> => {
   const cleanEmail = String(email).toLowerCase().trim();
 
   try {
+    let firebaseUid = "";
+    try {
+      const fbUser = await firebaseAdmin.auth().createUser({
+        email: cleanEmail,
+        password,
+        displayName: name || "User"
+      });
+      firebaseUid = fbUser.uid;
+    } catch (fbErr: any) {
+      if (fbErr.code === "auth/email-already-exists") {
+        res.status(400).json({ error: "An account with this email already exists" });
+        return;
+      }
+      throw fbErr;
+    }
+
     const passwordHash = await hashPassword(password);
     const { data, error } = await supabase
       .from("users")
@@ -85,16 +104,13 @@ router.post("/auth/signup", async (req, res): Promise<void> => {
         email: cleanEmail,
         password_hash: passwordHash,
         role: "user",
+        firebase_uid: firebaseUid
       })
       .select()
       .single();
 
     if (error) {
-      if (error.message?.includes("duplicate") || error.code === "23505") {
-        res.status(400).json({ error: "An account with this email already exists" });
-        return;
-      }
-      res.status(500).json({ error: "Failed to create account" });
+      res.status(500).json({ error: "Failed to create account in database" });
       return;
     }
 

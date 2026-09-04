@@ -23,6 +23,23 @@ async function ensureAdminUser() {
   }
 
   try {
+    const { verifyPasswordHash, hashPassword } = await import("./lib/auth");
+    
+    // Check if already seeded and password is unchanged
+    const { data: existingAdmin } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", adminEmail)
+      .single();
+      
+    if (existingAdmin && existingAdmin.firebase_uid) {
+      const isPasswordSame = await verifyPasswordHash(adminPassword, existingAdmin.password_hash);
+      if (isPasswordSame) {
+        logger.info("Admin user already synced. Skipping initialization.");
+        return;
+      }
+    }
+
     let firebaseUid = "";
     try {
       const fbUser = await firebaseAdmin.auth().getUserByEmail(adminEmail);
