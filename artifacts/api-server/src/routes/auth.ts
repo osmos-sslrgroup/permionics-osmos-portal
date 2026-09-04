@@ -235,7 +235,7 @@ router.get("/auth/users", requireRole(["admin"]), async (_req, res): Promise<voi
   try {
     const { data, error } = await supabase
       .from("users")
-      .select("id, name, email, role, created_at")
+      .select("id, name, email, role, created_at, is_blocked, firebase_uid")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -249,9 +249,47 @@ router.get("/auth/users", requireRole(["admin"]), async (_req, res): Promise<voi
   }
 });
 
+// Admin-only: Toggle block status for user or operator
+router.post("/auth/users/:id/block", requireRole(["admin"]), async (req, res): Promise<void> => {
+  const { blocked } = req.body;
+  
+  try {
+    const { data: user, error: fetchErr } = await supabase.from("users").select("firebase_uid, role").eq("id", req.params.id).single();
+    if (fetchErr || !user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    
+    if (user.role === "admin") {
+      res.status(403).json({ error: "Cannot block an admin account" });
+      return;
+    }
+
+    if (user.firebase_uid) {
+      await firebaseAdmin.auth().updateUser(user.firebase_uid, { disabled: blocked });
+    }
+
+    const { error } = await supabase.from("users").update({ is_blocked: blocked }).eq("id", req.params.id);
+    if (error) throw error;
+    
+    res.json({ success: true, is_blocked: blocked });
+  } catch (err) {
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // Admin-only: Delete user or operator
 router.delete("/auth/users/:id", requireRole(["admin"]), async (req, res): Promise<void> => {
   try {
+    const { data: user } = await supabase.from("users").select("firebase_uid").eq("id", req.params.id).single();
+    if (user?.firebase_uid) {
+      try {
+        await firebaseAdmin.auth().deleteUser(user.firebase_uid);
+      } catch (fbErr: any) {
+        if (fbErr.code !== "auth/user-not-found") throw fbErr;
+      }
+    }
+
     const { error } = await supabase.from("users").delete().eq("id", req.params.id);
     if (error) {
       res.status(500).json({ error: "Failed to delete user" });

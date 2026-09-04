@@ -10,6 +10,7 @@ interface UserItem {
   email: string;
   role: "admin" | "operator" | "user";
   created_at: string;
+  is_blocked?: boolean;
 }
 
 export function UserManagementPage() {
@@ -84,6 +85,22 @@ export function UserManagementPage() {
       });
     } finally {
       setIsCreating(false);
+    }
+  };
+
+  const handleToggleBlock = async (id: string, email: string, currentlyBlocked: boolean) => {
+    const action = currentlyBlocked ? "unblock" : "block";
+    if (!confirm(`Are you sure you want to ${action} user account ${email}?`)) return;
+
+    try {
+      await customFetch(`/api/auth/users/${id}/block`, {
+        method: "POST",
+        body: JSON.stringify({ blocked: !currentlyBlocked }),
+      });
+      toast({ title: "Success", description: `Account ${email} has been ${action}ed.` });
+      fetchUsers();
+    } catch (err: any) {
+      toast({ title: "Failed", description: err.message, variant: "destructive" });
     }
   };
 
@@ -166,9 +183,11 @@ export function UserManagementPage() {
               </thead>
               <tbody>
                 {users.map((u) => (
-                  <tr key={u.id} className="border-b border-border/50 hover:bg-muted/40">
+                  <tr key={u.id} className={`border-b border-border/50 hover:bg-muted/40 ${u.is_blocked ? "opacity-60" : ""}`}>
                     <td className="py-2.5 px-3">
-                      <div className="font-semibold text-foreground">{u.name || "User"}</div>
+                      <div className="font-semibold text-foreground">
+                        {u.name || "User"} {u.is_blocked && <span className="text-red-500 text-[10px] uppercase font-bold ml-1">(Blocked)</span>}
+                      </div>
                       <div className="text-[11px] text-muted-foreground">{u.email}</div>
                     </td>
                     <td className="py-2.5 px-3">
@@ -189,12 +208,20 @@ export function UserManagementPage() {
                     </td>
                     <td className="py-2.5 px-3 text-right">
                       {u.role !== "admin" && (
-                        <button
-                          onClick={() => handleDeleteUser(u.id, u.email)}
-                          className="text-xs font-semibold text-red-600 hover:text-red-800 dark:text-red-400"
-                        >
-                          Revoke / Delete
-                        </button>
+                        <div className="flex justify-end gap-3">
+                          <button
+                            onClick={() => handleToggleBlock(u.id, u.email, !!u.is_blocked)}
+                            className="text-xs font-semibold text-amber-600 hover:text-amber-800 dark:text-amber-400"
+                          >
+                            {u.is_blocked ? "Unblock" : "Block"}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteUser(u.id, u.email)}
+                            className="text-xs font-semibold text-red-600 hover:text-red-800 dark:text-red-400"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
