@@ -9,13 +9,16 @@ import { Lock, Mail, User, ArrowRight } from "lucide-react";
 import osmosLogo from "@assets/osmos_logo_blue_transparent.png";
 import permionicsLogo from "@assets/permionics_logo_blue.png";
 
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+
 export default function LoginPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: user, isLoading: meLoading } = useGetMe();
 
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -40,33 +43,34 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!password) return;
+    if (!email || !password) return;
     setIsSubmitting(true);
 
     try {
+      const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
+      const idToken = await userCredential.user.getIdToken(true);
+
       const res = (await customFetch("/api/auth/login", {
         method: "POST",
-        body: JSON.stringify({ email: email ? email.trim() : undefined, password, remember: true }),
+        body: JSON.stringify({ idToken, remember: true }),
       })) as any;
 
       if (res.authenticated) {
         localStorage.setItem("theme", "light");
         document.documentElement.classList.remove("dark");
         await queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
-        setLocation("/");
+        
+        if (res.needsReset) {
+          setLocation("/reset-password");
+        } else {
+          setLocation("/");
+        }
       } else {
-        toast({
-          title: "Access Denied",
-          description: res.error || "Invalid login credentials.",
-          variant: "destructive",
-        });
+        toast({ title: "Access Denied", description: res.error || "Invalid login credentials.", variant: "destructive" });
       }
     } catch (err: any) {
-      toast({
-        title: "Access Denied",
-        description: err.message || "Invalid password or email.",
-        variant: "destructive",
-      });
+      console.error(err);
+      toast({ title: "Access Denied", description: "Invalid email or password.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -84,35 +88,39 @@ export default function LoginPage() {
       })) as any;
 
       if (res.authenticated) {
-        toast({
-          title: "Account Created",
-          description: "Welcome to Osmos Insights Portal! You have read-only access to case studies.",
-        });
+        toast({ title: "Account Created", description: "Welcome to Osmos Insights Portal!" });
         await queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
         setLocation("/");
       } else {
-        toast({
-          title: "Registration Failed",
-          description: res.error || "Failed to create account.",
-          variant: "destructive",
-        });
+        toast({ title: "Registration Failed", description: res.error || "Failed to create account.", variant: "destructive" });
       }
     } catch (err: any) {
-      toast({
-        title: "Registration Failed",
-        description: err.message || "An account with this email may already exist.",
-        variant: "destructive",
-      });
+      toast({ title: "Registration Failed", description: err.message || "An account with this email may already exist.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      toast({ title: "Email Required", description: "Please enter your email to reset your password.", variant: "destructive" });
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      toast({ title: "Email Sent", description: "Check your inbox for password reset instructions." });
+      setMode("login");
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to send reset email.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleGoogleOAuth = () => {
-    toast({
-      title: "Google OAuth Sign-In",
-      description: "Google Sign-In requires your Firebase API key in .env (FIREBASE_API_KEY).",
-    });
+    toast({ title: "Google OAuth Sign-In", description: "Google Sign-In requires your Firebase API key in .env (FIREBASE_API_KEY)." });
   };
 
   return (
@@ -158,14 +166,14 @@ export default function LoginPage() {
         <div className="relative z-10 w-full max-w-[340px] mx-auto py-2">
           <div className="mb-4 text-center lg:text-left">
             <h2 className="text-2xl font-extrabold tracking-tight text-slate-900" style={{ fontFamily: "'Outfit', sans-serif" }}>
-              {mode === "login" ? "Welcome Back" : "Create User Account"}
+              {mode === "login" ? "Welcome Back" : mode === "signup" ? "Create User Account" : "Reset Password"}
             </h2>
             <p className="text-xs text-slate-400 mt-1 font-medium">
-              {mode === "login" ? "Log in to start using the Osmos Portal" : "Sign up for public view & download access"}
+              {mode === "login" ? "Log in to start using the Osmos Portal" : mode === "signup" ? "Sign up for public view & download access" : "Enter your email to receive a reset link"}
             </p>
           </div>
 
-          <form onSubmit={mode === "login" ? handleLogin : handleSignup} className="space-y-3">
+          <form onSubmit={mode === "login" ? handleLogin : mode === "signup" ? handleSignup : handleForgotPassword} className="space-y-3">
             {mode === "signup" && (
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Full Name</label>
@@ -184,7 +192,7 @@ export default function LoginPage() {
 
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
-                {mode === "signup" ? "Email Address" : "Email (Optional for Admin Password)"}
+                Email Address
               </label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -198,20 +206,29 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Password</label>
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input
-                  type="password"
-                  placeholder="Enter password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 h-10 rounded-lg border border-slate-200 text-xs font-semibold"
-                  required
-                />
+            {mode !== "forgot" && (
+              <div>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">Password</label>
+                  {mode === "login" && (
+                    <button type="button" onClick={() => setMode("forgot")} className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800">
+                      Forgot Password?
+                    </button>
+                  )}
+                </div>
+                <div className="relative">
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input
+                    type="password"
+                    placeholder="Enter password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10 h-10 rounded-lg border border-slate-200 text-xs font-semibold"
+                    required
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             <Button
               type="submit"
@@ -223,32 +240,42 @@ export default function LoginPage() {
               disabled={isSubmitting}
             >
               {isSubmitting ? (
-                "Authenticating..."
+                "Processing..."
               ) : (
                 <>
-                  {mode === "login" ? "Sign In" : "Register Account"}
+                  {mode === "login" ? "Sign In" : mode === "signup" ? "Register Account" : "Send Reset Link"}
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </Button>
+            
+            {mode === "forgot" && (
+              <div className="text-center mt-3">
+                <button type="button" onClick={() => setMode("login")} className="text-[11px] font-bold text-slate-500 hover:text-slate-800">
+                  Back to Login
+                </button>
+              </div>
+            )}
           </form>
 
           {/* Social Google OAuth Divider */}
-          <div className="mt-4 pt-3 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={handleGoogleOAuth}
-              className="w-full h-10 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold flex items-center justify-center gap-2 transition-all"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-              </svg>
-              Sign in with Google (Firebase)
-            </button>
-          </div>
+          {mode !== "forgot" && (
+            <div className="mt-4 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={handleGoogleOAuth}
+                className="w-full h-10 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold flex items-center justify-center gap-2 transition-all"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                </svg>
+                Sign in with Google (Firebase)
+              </button>
+            </div>
+          )}
         </div>
 
         <p className="text-[10px] text-center text-slate-400 mt-2">
