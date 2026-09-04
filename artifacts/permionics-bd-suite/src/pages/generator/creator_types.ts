@@ -245,8 +245,22 @@ export function formatSectorDefault(sector?: string): string {
 }
 
 export function migrateCaseStudyData(raw: any): CaseStudyData {
-  const d = { ...raw };
-  if (!d.siteInfoFields) {
+  if (!raw || typeof raw !== "object") {
+    return { ...DEFAULT_DATA };
+  }
+  const d: CaseStudyData = {
+    ...DEFAULT_DATA,
+    ...raw,
+    plantImgCfg: { ...DEFAULT_PHOTO_CFG, ...(raw.plantImgCfg || {}) },
+    handshakeImgCfg: { ...DEFAULT_PHOTO_CFG, ...(raw.handshakeImgCfg || {}) },
+    beakersImgCfg: { ...DEFAULT_PHOTO_CFG, ...(raw.beakersImgCfg || {}) },
+  };
+
+  if (!Array.isArray(d.cards)) {
+    d.cards = DEFAULT_DATA.cards;
+  }
+
+  if (!d.siteInfoFields || !Array.isArray(d.siteInfoFields)) {
     d.siteInfoFields = [
       { id: "location", label: "Location:", value: d.location || "", visible: true },
       { id: "sector", label: "Industry:", value: formatSectorDefault(d.sector), visible: true },

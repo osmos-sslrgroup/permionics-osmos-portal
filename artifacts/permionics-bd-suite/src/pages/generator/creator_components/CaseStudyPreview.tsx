@@ -10,12 +10,14 @@ interface Props {
   onChange?: (data: CaseStudyData) => void;
 }
 
-function lines(text: string): string[] {
-  return text.split("\n").map((l) => l.trim()).filter(Boolean);
+function lines(text?: string): string[] {
+  if (!text) return [];
+  return String(text).split("\n").map((l) => l.trim()).filter(Boolean);
 }
 
-function parseWaterRows(raw: string) {
-  return raw.split("\n").map((l) => l.trim()).filter(Boolean).map((row) => {
+function parseWaterRows(raw?: string) {
+  if (!raw) return [];
+  return String(raw).split("\n").map((l) => l.trim()).filter(Boolean).map((row) => {
     const parts = row.split("|").map((p) => p.trim());
     return { parameter: parts[0] || "", unit: parts[1] || "", feed: parts[2] || "", treated: parts[3] || "" };
   });
@@ -222,7 +224,7 @@ export function CaseStudyPreview({ data, palette, editable = false, onChange }: 
           )}
 
           <div style={headingStyle}>Introduction</div>
-          {data.intro.split("\n\n").map((para, i) => (
+          {String(data.intro || "").split("\n\n").map((para, i) => (
             <p key={i} style={{ fontSize: "8.5pt", lineHeight: 1.6, color: "#222", marginBottom: "8px" }}>
               {editable ? (
                 <span
@@ -232,7 +234,7 @@ export function CaseStudyPreview({ data, palette, editable = false, onChange }: 
                   style={{ display: "block" }}
                   onBlur={(e) => {
                     const el = e.currentTarget;
-                    const parts = data.intro.split("\n\n");
+                    const parts = String(data.intro || "").split("\n\n");
                     parts[i] = el.innerText;
                     editField("intro", parts.join("\n\n"));
                   }}
@@ -318,11 +320,11 @@ export function CaseStudyPreview({ data, palette, editable = false, onChange }: 
           <div style={headingStyle}>Operational Results</div>
 
           <div style={{ display: "flex", gap: "10px", margin: "10px 0" }}>
-            {data.cards.filter((c) => c.number).map((card, i) => (
+            {(data.cards || []).filter((c) => c && c.number).map((card, i) => (
               <div key={i} style={{ flex: 1, border: `1px solid ${accent}`, borderTop: `4px solid ${accent}`, padding: "10px 10px 8px", borderRadius: "2px", textAlign: "center" }}>
                 <div style={{ fontSize: "17pt", fontWeight: 700, color: accent, lineHeight: 1, marginBottom: "4px" }}>{card.number}</div>
                 <div style={{ fontSize: "7pt", color: "#444", textTransform: "uppercase", letterSpacing: "0.5px", lineHeight: 1.3 }}>
-                  {card.label.split("\n").map((line, j, arr) => (
+                  {String(card.label || "").split("\n").map((line, j, arr) => (
                     <span key={j}>{line}{j < arr.length - 1 && <br />}</span>
                   ))}
                 </div>
