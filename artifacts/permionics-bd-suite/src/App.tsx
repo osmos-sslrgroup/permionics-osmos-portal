@@ -2,6 +2,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Route, Switch, Router as WouterRouter } from 'wouter';
+import { AlertCircle } from 'lucide-react';
+import { isFirebaseConfigured } from '@/lib/firebase';
 
 import { AppLayout } from './components/layout/AppLayout';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
@@ -99,6 +101,26 @@ function Router() {
 }
 
 function App() {
+  if (!isFirebaseConfigured) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-slate-950 p-6 select-none font-sans">
+        <div className="absolute inset-0 z-0 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950" />
+        <div className="relative z-10 w-full max-w-md bg-white p-8 rounded-xl shadow-[0_24px_48px_rgba(0,0,0,0.4)] border-t-4 border-t-red-500 text-center">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h1 className="text-xl font-extrabold text-slate-900 mb-2">Missing Configuration</h1>
+          <p className="text-sm text-slate-500 mb-4">
+            The application failed to start because Firebase is not configured.
+          </p>
+          <div className="bg-slate-50 rounded p-3 text-left border border-slate-100">
+            <code className="text-[10px] text-slate-600 font-mono">
+              Make sure to add <span className="font-bold text-slate-800">VITE_FIREBASE_API_KEY</span> and <span className="font-bold text-slate-800">VITE_FIREBASE_AUTH_DOMAIN</span> to your frontend .env file.
+            </code>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
