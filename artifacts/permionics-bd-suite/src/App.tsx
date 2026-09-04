@@ -7,6 +7,7 @@ import { AppLayout } from './components/layout/AppLayout';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 import LoginPage from './pages/login';
+import ResetPasswordPage from './pages/reset-password';
 import DashboardPage from './pages/dashboard';
 import LibraryPage from './pages/library/index';
 import CaseStudyDetail from './pages/library/detail';
@@ -29,6 +30,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={LoginPage} />
+      <Route path="/reset-password" component={ResetPasswordPage} />
       
       {/* Protected Routes */}
       <Route path="/">

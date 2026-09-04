@@ -123,6 +123,40 @@ router.post("/auth/signup", async (req, res): Promise<void> => {
   }
 });
 
+// Clear the needs_password_reset flag and sync password
+router.post("/auth/reset-flag", async (req, res): Promise<void> => {
+  const { password } = req.body;
+  const token = getTokenFromRequest(req);
+  if (!token) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  
+  try {
+    const payload = await verifyToken(token);
+    if (!payload || !payload.userId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const updates: any = { needs_password_reset: false };
+    if (password) {
+      const { hashPassword } = await import("../lib/auth");
+      updates.password_hash = await hashPassword(password);
+    }
+
+    const { error } = await supabase
+      .from("users")
+      .update(updates)
+      .eq("id", payload.userId);
+
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to reset flag" });
+  }
+});
+
 // Admin-only: Create Operator Account (with email & password)
 router.post("/auth/operator", requireRole(["admin"]), async (req, res): Promise<void> => {
   const { name, email, password } = req.body;
