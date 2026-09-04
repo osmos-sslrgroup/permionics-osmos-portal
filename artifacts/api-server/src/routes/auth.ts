@@ -12,6 +12,7 @@ import {
   verifyPasswordHash,
 } from "../lib/auth";
 import { supabase } from "../lib/supabase";
+import { firebaseAdmin } from "../lib/firebase-admin";
 import { requireRole } from "../middlewares/requireRole";
 
 const router: IRouter = Router();
@@ -118,6 +119,25 @@ router.post("/auth/operator", requireRole(["admin"]), async (req, res): Promise<
   const cleanEmail = String(email).toLowerCase().trim();
 
   try {
+    let firebaseUid = "";
+    try {
+      const fbUser = await firebaseAdmin.auth().createUser({
+        email: cleanEmail,
+        password,
+        displayName: name || "Operator"
+      });
+      firebaseUid = fbUser.uid;
+    } catch (fbErr: any) {
+      if (fbErr.code === "auth/email-already-exists") {
+         const fbUser = await firebaseAdmin.auth().getUserByEmail(cleanEmail);
+         firebaseUid = fbUser.uid;
+         // Ensure password is set correctly for existing Firebase user if we are reclaiming
+         await firebaseAdmin.auth().updateUser(firebaseUid, { password });
+      } else {
+         throw fbErr;
+      }
+    }
+
     const passwordHash = await hashPassword(password);
     const { data, error } = await supabase
       .from("users")
@@ -126,11 +146,30 @@ router.post("/auth/operator", requireRole(["admin"]), async (req, res): Promise<
         email: cleanEmail,
         password_hash: passwordHash,
         role: "operator",
+        firebase_uid: firebaseUid,
+        needs_password_reset: true
       })
       .select()
       .single();
 
     if (error) {
+      if (error.message?.includes("duplicate") || error.code === "23505") {
+        // If already exists in DB, update it
+        const { data: updatedData, error: updateError } = await supabase
+           .from("users")
+           .update({
+             password_hash: passwordHash,
+             firebase_uid: firebaseUid,
+             needs_password_reset: true
+           })
+           .eq("email", cleanEmail)
+           .select()
+           .single();
+           
+        if (updateError) throw updateError;
+        res.status(201).json({ success: true, operator: { id: updatedData.id, email: updatedData.email, name: updatedData.name, role: updatedData.role } });
+        return;
+      }
       res.status(500).json({ error: "Failed to create operator account" });
       return;
     }

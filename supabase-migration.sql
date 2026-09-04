@@ -59,6 +59,8 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL,
   name TEXT NOT NULL DEFAULT '',
   role TEXT NOT NULL CHECK (role IN ('admin', 'operator', 'user')),
+  firebase_uid TEXT UNIQUE,
+  needs_password_reset BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
