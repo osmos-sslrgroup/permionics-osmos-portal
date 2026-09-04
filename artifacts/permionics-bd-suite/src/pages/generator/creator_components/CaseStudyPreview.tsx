@@ -37,7 +37,7 @@ function ImgBox({ src, caption, cfg: cfgProp, primary, light, lightBorder }: {
 }) {
   const cfg = cfgProp ?? DEFAULT_CFG;
   return (
-    <div style={{ margin: "12px 0", border: `1px solid ${lightBorder}`, borderRadius: "2px", overflow: "hidden" }}>
+    <div className="print-avoid-break" style={{ margin: "12px 0", border: `1px solid ${lightBorder}`, borderRadius: "2px", overflow: "hidden" }}>
       {src ? (
         <img src={src} alt={caption} style={{ width: "100%", display: "block", height: `${cfg.height}px`, objectFit: cfg.fit, objectPosition: cfg.position }} />
       ) : (
@@ -321,7 +321,7 @@ export function CaseStudyPreview({ data, palette, editable = false, onChange }: 
 
           <div style={{ display: "flex", gap: "10px", margin: "10px 0" }}>
             {(data.cards || []).filter((c) => c && c.number).map((card, i) => (
-              <div key={i} style={{ flex: 1, border: `1px solid ${accent}`, borderTop: `4px solid ${accent}`, padding: "10px 10px 8px", borderRadius: "2px", textAlign: "center" }}>
+              <div key={i} className="print-avoid-break" style={{ flex: 1, border: `1px solid ${accent}`, borderTop: `4px solid ${accent}`, padding: "10px 10px 8px", borderRadius: "2px", textAlign: "center" }}>
                 <div style={{ fontSize: "17pt", fontWeight: 700, color: accent, lineHeight: 1, marginBottom: "4px" }}>{card.number}</div>
                 <div style={{ fontSize: "7pt", color: "#444", textTransform: "uppercase", letterSpacing: "0.5px", lineHeight: 1.3 }}>
                   {String(card.label || "").split("\n").map((line, j, arr) => (
@@ -343,7 +343,7 @@ export function CaseStudyPreview({ data, palette, editable = false, onChange }: 
             </thead>
             <tbody>
               {waterRows.map((row, i) => (
-                <tr key={i} style={{ background: i % 2 === 0 ? "#fff" : light }}>
+                <tr key={i} className="print-avoid-break" style={{ background: i % 2 === 0 ? "#fff" : light }}>
                   <td style={{ padding: "5px 8px", borderBottom: `1px solid ${lightBorder}`, fontWeight: 600, color: primary, fontSize: "8pt" }}>{row.parameter}</td>
                   <td style={{ padding: "5px 8px", borderBottom: `1px solid ${lightBorder}`, color: "#555", fontSize: "8pt" }}>{row.unit}</td>
                   <td style={{ padding: "5px 8px", borderBottom: `1px solid ${lightBorder}`, color: "#333", fontSize: "8pt" }}>{row.feed}</td>

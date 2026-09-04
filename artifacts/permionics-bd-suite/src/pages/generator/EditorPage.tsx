@@ -134,7 +134,7 @@ export default function EditorPage({ projectId }: Props) {
   return (
     <div className="text-foreground" style={{ display: "flex", height: "100vh", overflow: "hidden", background: "hsl(var(--background))" }}>
       {/* Collapsible sidebar */}
-      <div style={{
+      <div className="print-hide" style={{
         flexShrink: 0,
         width: sidebarCollapsed ? "0px" : "320px",
         overflow: "hidden",
@@ -164,9 +164,9 @@ export default function EditorPage({ projectId }: Props) {
       </div>
 
       {/* Preview area */}
-      <div style={{ flex: 1, overflowY: "auto", background: "hsl(var(--background))", display: "flex", flexDirection: "column", alignItems: "center", padding: "16px 16px", gap: "10px", minWidth: 0 }}>
+      <div className="print-full" style={{ flex: 1, overflowY: "auto", background: "hsl(var(--background))", display: "flex", flexDirection: "column", alignItems: "center", padding: "16px 16px", gap: "10px", minWidth: 0 }}>
         {/* Top bar */}
-        <div style={{ width: "100%", maxWidth: "860px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+        <div className="print-hide" style={{ width: "100%", maxWidth: "860px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             {/* Hamburger toggle */}
             <button
@@ -263,7 +263,7 @@ export default function EditorPage({ projectId }: Props) {
           </div>
         </div>
 
-        <div style={{ boxShadow: "0 4px 32px rgba(0,0,0,0.18)", width: "794px", flexShrink: 0 }}>
+        <div className="print-full" style={{ boxShadow: "0 4px 32px rgba(0,0,0,0.18)", width: "794px", flexShrink: 0 }}>
           <CaseStudyPreview data={data} palette={pal} editable={editableMode} onChange={handleDataChange} />
         </div>
       </div>

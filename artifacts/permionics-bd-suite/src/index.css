@@ -333,6 +333,16 @@
     display: none !important;
   }
 
+  .cs-page-break {
+    break-after: page !important;
+    page-break-after: always !important;
+  }
+
+  .print-avoid-break {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
   main,
   .print-full {
     width: 100% !important;
