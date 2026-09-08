@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { requireAuth } from "../middlewares/requireAuth";
-import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/db";
 import Groq from "groq-sdk";
 import { GoogleGenAI } from "@google/genai";
 

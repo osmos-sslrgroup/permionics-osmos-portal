@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { requireAuth } from "../middlewares/requireAuth";
-import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/db";
 
 const router: IRouter = Router();
 
