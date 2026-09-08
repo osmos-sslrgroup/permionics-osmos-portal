@@ -91,12 +91,33 @@ export function Sidebar({ data, palette, onPaletteChange, onChange, onPrint, onB
     onChange({ ...data, cards });
   };
 
-  const handleImg = (
+  const handleImg = async (
     e: React.ChangeEvent<HTMLInputElement>,
     field: "plantImg" | "handshakeImg" | "beakersImg"
   ) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json.url) {
+          onChange({ ...data, [field]: json.url });
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn("CDN upload failed, using local base64 fallback", err);
+    }
+
+    // Fallback to FileReader base64 if network upload fails
     const reader = new FileReader();
     reader.onload = (ev) => onChange({ ...data, [field]: ev.target?.result as string });
     reader.readAsDataURL(file);
