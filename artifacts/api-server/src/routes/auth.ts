@@ -9,7 +9,7 @@ import {
   getAdminPassword,
   getAdminEmail,
 } from "../lib/auth";
-import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/db";
 import { firebaseAuth } from "../lib/firebase-admin";
 import { requireRole } from "../middlewares/requireRole";
 
