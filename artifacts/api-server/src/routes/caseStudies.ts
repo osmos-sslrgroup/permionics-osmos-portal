@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { requireAuth } from "../middlewares/requireAuth";
-import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/db";
 import fs from "fs";
 import path from "path";
 import multer from "multer";
