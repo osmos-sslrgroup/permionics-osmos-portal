@@ -1,13 +1,16 @@
 import { pool } from "./index";
-import { debugLog } from "../../../artifacts/api-server/src/lib/modes";
+
+function logAutoMigrate(message: string) {
+  console.log(`[AUTO_MIGRATE] ${message}`);
+}
 
 export async function autoMigrate() {
   if (!process.env.DATABASE_URL) {
-    debugLog("AUTO_MIGRATE", "DATABASE_URL not set. Skipping PostgreSQL AutoMigrate.");
+    logAutoMigrate("DATABASE_URL not set. Skipping PostgreSQL AutoMigrate.");
     return;
   }
 
-  debugLog("AUTO_MIGRATE", "Starting PostgreSQL AutoMigrate (GORM AutoMigrate equivalent)...");
+  logAutoMigrate("Starting PostgreSQL AutoMigrate (GORM AutoMigrate equivalent)...");
 
   const client = await pool.connect();
   try {
@@ -93,7 +96,7 @@ export async function autoMigrate() {
     const count = parseInt(checkCaseStudies.rows[0].count, 10);
 
     if (count === 0) {
-      debugLog("AUTO_MIGRATE", "Seeding initial Permionics case studies into fresh PostgreSQL database...");
+      logAutoMigrate("Seeding initial Permionics case studies into fresh PostgreSQL database...");
       await client.query(`
         INSERT INTO case_studies (client_name, sector, location, challenge, solution, technology_stack, capacity, results, testimonial, tags, full_text)
         VALUES 
@@ -152,7 +155,7 @@ export async function autoMigrate() {
       `);
     }
 
-    debugLog("AUTO_MIGRATE", "PostgreSQL AutoMigrate completed successfully.");
+    logAutoMigrate("PostgreSQL AutoMigrate completed successfully.");
   } catch (error) {
     console.error("[AUTO_MIGRATE ERROR]", error);
   } finally {
