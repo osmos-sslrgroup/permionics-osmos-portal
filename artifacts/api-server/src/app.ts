@@ -5,8 +5,13 @@ import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import caseStudiesRoutes from "./routes/caseStudies";
+import { modesTracingMiddleware, validateDeployEnvironment } from "./lib/modes";
+
+validateDeployEnvironment();
 
 const app: Express = express();
+
+app.use(modesTracingMiddleware);
 
 app.use(
   pinoHttp({
