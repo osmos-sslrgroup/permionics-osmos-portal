@@ -44,8 +44,14 @@ async function ensureAdminUser() {
       }
     }
 
-    // PostgreSQL insert is now handled by autoMigrate.ts
-    // We only need to ensure the Firebase user exists here.
+    // Sync firebase_uid back to PostgreSQL — autoMigrate seeds admin without it
+    // since it has no Firebase SDK access. This is the only place that can write it.
+    await supabase
+      .from("users")
+      .update({ firebase_uid: firebaseUid })
+      .eq("email", adminEmail);
+
+    logger.info("Admin firebase_uid synced to PostgreSQL DB.");
   } catch (error: any) {
     logger.error({ error: error?.message || error }, "Failed to initialize Admin user in Firebase");
   }

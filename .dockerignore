@@ -1,0 +1,23 @@
+# Exclude all node_modules from the Docker build context.
+# pnpm install runs inside the container so these are never needed.
+# Without this, Docker on Windows fails with:
+#   archive/tar: unknown file mode ?rwxr-xr-x
+**/node_modules
+
+# Exclude local dev artifacts
+**/dist
+**/.tsbuildinfo
+**/*.tsbuildinfo
+
+# Exclude local environment files with secrets
+**/.env
+**/.env.local
+
+# Exclude local data directories
+emulator-data
+local
+
+# Exclude git history and editor configs
+.git
+.gitignore
+*.md
