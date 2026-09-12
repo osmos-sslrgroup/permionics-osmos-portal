@@ -205,6 +205,34 @@ function createMockQueryBuilder(tableName: string) {
       data = insertedRows;
       return builder;
     },
+    upsert(payload: any, options?: { onConflict?: string }) {
+      const rows = Array.isArray(payload) ? payload : [payload];
+      const conflictField = options?.onConflict || "email";
+      const insertedRows = rows.map((row) => {
+        const existingIdx = dbStore[tableName].findIndex(
+          (item) => String(item[conflictField]) === String(row[conflictField])
+        );
+        if (existingIdx !== -1) {
+          dbStore[tableName][existingIdx] = {
+            ...dbStore[tableName][existingIdx],
+            ...row,
+            updated_at: new Date().toISOString(),
+          };
+          return dbStore[tableName][existingIdx];
+        } else {
+          const newRow = {
+            id: row.id || ++nextId,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            ...row,
+          };
+          dbStore[tableName].push(newRow);
+          return newRow;
+        }
+      });
+      data = insertedRows;
+      return builder;
+    },
     update(payload: any) {
       data.forEach((existingRow) => {
         Object.assign(existingRow, payload, { updated_at: new Date().toISOString() });
@@ -231,16 +259,143 @@ function createMockQueryBuilder(tableName: string) {
   return builder;
 }
 
+function createPostgresQueryBuilder(tableName: string) {
+  let selectFields = "*";
+  let isSingle = false;
+  let isCount = false;
+  let whereConditions: string[] = [];
+  let queryParams: any[] = [];
+  let orderByClause = "";
+  let limitClause = "";
+  let action: "select" | "insert" | "upsert" | "update" | "delete" = "select";
+  let payloadData: any = null;
+  let onConflictTarget = "";
+
+  const builder: any = {
+    select(fields?: string, options?: { count?: string }) {
+      if (fields && fields !== "*") selectFields = fields;
+      if (options?.count) isCount = true;
+      action = "select";
+      return builder;
+    },
+    eq(field: string, value: any) {
+      queryParams.push(value);
+      whereConditions.push(`${field} = $${queryParams.length}`);
+      return builder;
+    },
+    neq(field: string, value: any) {
+      queryParams.push(value);
+      whereConditions.push(`${field} != $${queryParams.length}`);
+      return builder;
+    },
+    ilike(field: string, pattern: string) {
+      queryParams.push(pattern);
+      whereConditions.push(`${field} ILIKE $${queryParams.length}`);
+      return builder;
+    },
+    or(filterString: string) {
+      return builder;
+    },
+    order(field: string, options?: { ascending?: boolean }) {
+      const asc = options?.ascending ?? true;
+      orderByClause = ` ORDER BY ${field} ${asc ? "ASC" : "DESC"}`;
+      return builder;
+    },
+    limit(n: number) {
+      limitClause = ` LIMIT ${n}`;
+      return builder;
+    },
+    single() {
+      isSingle = true;
+      return builder;
+    },
+    insert(payload: any) {
+      action = "insert";
+      payloadData = payload;
+      return builder;
+    },
+    upsert(payload: any, options?: { onConflict?: string }) {
+      action = "upsert";
+      payloadData = payload;
+      onConflictTarget = options?.onConflict || "email";
+      return builder;
+    },
+    update(payload: any) {
+      action = "update";
+      payloadData = payload;
+      return builder;
+    },
+    delete() {
+      action = "delete";
+      return builder;
+    },
+    async then(onfulfilled?: (value: any) => any, onrejected?: (reason: any) => any) {
+      try {
+        let sqlQuery = "";
+        let params = [...queryParams];
+
+        if (action === "select") {
+          const whereSql = whereConditions.length > 0 ? ` WHERE ${whereConditions.join(" AND ")}` : "";
+          sqlQuery = `SELECT ${selectFields} FROM ${tableName}${whereSql}${orderByClause}${limitClause}`;
+        } else if (action === "insert" || action === "upsert") {
+          const row = Array.isArray(payloadData) ? payloadData[0] : payloadData;
+          const keys = Object.keys(row);
+          const cols = keys.join(", ");
+          const vals = keys.map((_, i) => `$${i + 1}`).join(", ");
+          params = keys.map((k) => row[k]);
+
+          if (action === "upsert") {
+            const conflictCol = onConflictTarget || "email";
+            const updateCols = keys.filter(k => k !== conflictCol).map(k => `${k} = EXCLUDED.${k}`).join(", ");
+            sqlQuery = `INSERT INTO ${tableName} (${cols}) VALUES (${vals}) ON CONFLICT (${conflictCol}) DO UPDATE SET ${updateCols} RETURNING *`;
+          } else {
+            sqlQuery = `INSERT INTO ${tableName} (${cols}) VALUES (${vals}) RETURNING *`;
+          }
+        } else if (action === "update") {
+          const keys = Object.keys(payloadData);
+          const setClause = keys.map((k, i) => `${k} = $${i + 1}`).join(", ");
+          params = [...keys.map((k) => payloadData[k])];
+          const offset = keys.length;
+          const whereSql = whereConditions.length > 0 ? ` WHERE ${whereConditions.map((c, i) => c.replace(/\$\d+/, `$${offset + i + 1}`)).join(" AND ")}` : "";
+          params.push(...queryParams);
+          sqlQuery = `UPDATE ${tableName} SET ${setClause}${whereSql} RETURNING *`;
+        } else if (action === "delete") {
+          const whereSql = whereConditions.length > 0 ? ` WHERE ${whereConditions.join(" AND ")}` : "";
+          sqlQuery = `DELETE FROM ${tableName}${whereSql} RETURNING *`;
+        }
+
+        debugLog("PG_SQL", sqlQuery, params);
+        const res = await pool.query(sqlQuery, params);
+        let resultData = res.rows;
+        if (isSingle) {
+          resultData = res.rows[0] || null;
+        }
+
+        const response = {
+          data: resultData,
+          error: null,
+          count: isCount ? res.rows.length : null,
+        };
+        return Promise.resolve(response).then(onfulfilled, onrejected);
+      } catch (err: any) {
+        debugLog("PG_ERROR", err.message);
+        return Promise.resolve({ data: null, error: err, count: null }).then(onfulfilled, onrejected);
+      }
+    },
+  };
+
+  return builder;
+}
+
 // Unified Database Access Wrapper (supports both PostgreSQL and Mock fallback)
 export const pgDb = {
   isConfigured: isPostgresConfigured,
   drizzle: db,
   pool,
   from(tableName: string) {
-    if (!isPostgresConfigured) {
-      return createMockQueryBuilder(tableName);
+    if (isPostgresConfigured) {
+      return createPostgresQueryBuilder(tableName);
     }
-    // Return standard compatibility builder for routes during transition
     return createMockQueryBuilder(tableName);
   },
 };
