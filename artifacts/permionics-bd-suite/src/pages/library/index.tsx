@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { Link, useLocation } from "wouter";
-import { useListCaseStudies, useDeleteCaseStudy, customFetch } from "@workspace/api-client-react";
+import { useListCaseStudies, useDeleteCaseStudy, customFetch, useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,10 @@ export default function LibraryPage() {
   });
 
   const { data: caseStudies, isLoading } = caseStudiesQuery;
+
+  const { data: meData } = useGetMe({ query: { queryKey: getGetMeQueryKey() } });
+  const currentUserRole = (meData as any)?.user?.role || "user";
+  const canEdit = currentUserRole === "admin" || currentUserRole === "operator";
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -122,27 +126,31 @@ export default function LibraryPage() {
           <p className="text-muted-foreground mt-1 font-normal text-sm">Browse, filter, and access all client case studies and outcomes.</p>
         </div>
         <div className="flex items-center gap-3">
-          <input 
-            type="file" 
-            accept="application/pdf"
-            className="hidden" 
-            ref={fileInputRef} 
-            onChange={handleFileUpload} 
-          />
-          <Button 
-            variant="outline" 
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-          >
-            {isUploading ? (
-              <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Uploading...</>
-            ) : (
-              <><Upload className="w-4 h-4 mr-2" /> Upload Case Study</>
-            )}
-          </Button>
-          <Button onClick={() => setLocation("/generator")}>
-            <Plus className="w-4 h-4 mr-2" /> New Project
-          </Button>
+          {canEdit && (
+            <>
+              <input 
+                type="file" 
+                accept="application/pdf"
+                className="hidden" 
+                ref={fileInputRef} 
+                onChange={handleFileUpload} 
+              />
+              <Button 
+                variant="outline" 
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+              >
+                {isUploading ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Uploading...</>
+                ) : (
+                  <><Upload className="w-4 h-4 mr-2" /> Upload Case Study</>
+                )}
+              </Button>
+              <Button onClick={() => setLocation("/generator")}>
+                <Plus className="w-4 h-4 mr-2" /> New Project
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -251,13 +259,15 @@ export default function LibraryPage() {
                               <Download className="mr-2 h-4 w-4" />
                               Download PDF
                             </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              className="text-red-600 focus:text-red-700 cursor-pointer"
-                              onClick={() => handleDelete(cs)}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
+                            {canEdit && (
+                              <DropdownMenuItem 
+                                className="text-red-600 focus:text-red-700 cursor-pointer"
+                                onClick={() => handleDelete(cs)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>

@@ -60,7 +60,7 @@ function Router() {
       </Route>
 
       <Route path="/generator" nest>
-        <ProtectedRoute>
+        <ProtectedRoute allowedRoles={["admin", "operator"]}>
           <AppLayout>
             <GeneratorPage />
           </AppLayout>
@@ -68,7 +68,7 @@ function Router() {
       </Route>
 
       <Route path="/questionnaire">
-        <ProtectedRoute>
+        <ProtectedRoute allowedRoles={["admin", "operator"]}>
           <AppLayout>
             <QuestionnairePage />
           </AppLayout>

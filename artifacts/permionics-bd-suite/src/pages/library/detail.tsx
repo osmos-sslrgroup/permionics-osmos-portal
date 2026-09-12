@@ -1,5 +1,5 @@
 import { useParams, Link, useLocation } from "wouter";
-import { useGetCaseStudy, getGetCaseStudyQueryKey, useDeleteCaseStudy, useUpdateCaseStudy } from "@workspace/api-client-react";
+import { useGetCaseStudy, getGetCaseStudyQueryKey, useDeleteCaseStudy, useUpdateCaseStudy, useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { CaseStudyPreview } from "../generator/creator_components/CaseStudyPreview";
 import { getPalette, DEFAULT_PHOTO_CFG } from "../generator/creator_types";
@@ -62,6 +62,10 @@ export default function CaseStudyDetail() {
 
   const deleteMutation = useDeleteCaseStudy();
   const updateMutation = useUpdateCaseStudy();
+
+  const { data: meData } = useGetMe({ query: { queryKey: getGetMeQueryKey() } });
+  const currentUserRole = (meData as any)?.user?.role || "user";
+  const canEdit = currentUserRole === "admin" || currentUserRole === "operator";
 
   useEffect(() => {
     if (data) {
@@ -231,14 +235,64 @@ export default function CaseStudyDetail() {
           <ArrowLeft className="w-4 h-4 mr-2" /> Back to Library
         </Link>
         <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={handleDownload} className="bg-background">
-            <Download className="w-4 h-4 mr-2" /> Export PDF
-          </Button>
+          <div className="relative group">
+            <Button variant="outline" className="bg-background">
+              <Download className="w-4 h-4 mr-2" /> Export / Print ▾
+            </Button>
+            <div className="absolute left-0 mt-1 w-48 bg-card border border-border rounded-md shadow-lg hidden group-hover:block z-50 p-1">
+              <button
+                onClick={handleDownload}
+                className="w-full text-left px-3 py-2 text-xs text-foreground hover:bg-muted rounded flex items-center gap-2 font-medium"
+              >
+                📄 Multi-Page A4 PDF
+              </button>
+              {!isStatic && (
+                <>
+                  <button
+                    onClick={async () => {
+                      const { exportToDocx } = await import("../generator/creator_utils/exportUtils");
+                      exportToDocx();
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs text-foreground hover:bg-muted rounded flex items-center gap-2 font-medium"
+                  >
+                    📝 Word Document (.docx)
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const { exportToImage } = await import("../generator/creator_utils/exportUtils");
+                      exportToImage("png");
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs text-foreground hover:bg-muted rounded flex items-center gap-2 font-medium"
+                  >
+                    🖼️ PNG Image
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const { exportToImage } = await import("../generator/creator_utils/exportUtils");
+                      exportToImage("jpeg");
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs text-foreground hover:bg-muted rounded flex items-center gap-2 font-medium"
+                  >
+                    🖼️ JPEG Image
+                  </button>
+                  <button
+                    onClick={async () => {
+                      const { triggerNativePrint } = await import("../generator/creator_utils/exportUtils");
+                      triggerNativePrint();
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs text-foreground hover:bg-muted rounded flex items-center gap-2 font-medium border-t border-border mt-1 pt-2"
+                  >
+                    🖨️ Direct Print
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
           {isStatic ? (
             <Button variant="secondary" className="bg-secondary text-secondary-foreground" disabled>
               <Edit className="w-4 h-4 mr-2" /> Edit Case Study
             </Button>
-          ) : (
+          ) : canEdit ? (
             <Dialog open={isEditingModalOpen} onOpenChange={setIsEditingModalOpen}>
               <DialogTrigger asChild>
                 <Button variant="secondary" className="bg-secondary text-secondary-foreground hover:bg-secondary/80">
@@ -352,30 +406,32 @@ export default function CaseStudyDetail() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-          )}
+          ) : null}
           
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" disabled={isDeleting} className="bg-destructive hover:bg-destructive/90 text-white">
-                {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
-                Delete
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Case Study?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to permanently delete "{data.clientName}" from the library? This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90 text-white">
+          {canEdit && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" disabled={isDeleting} className="bg-destructive hover:bg-destructive/90 text-white">
+                  {isDeleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
                   Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Case Study?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to permanently delete "{data.clientName}" from the library? This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90 text-white">
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </div>
       </div>
       
