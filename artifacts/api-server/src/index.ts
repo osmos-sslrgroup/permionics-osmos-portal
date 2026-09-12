@@ -24,18 +24,6 @@ async function ensureAdminUser() {
   }
 
   try {
-    // Check if already seeded with Firebase
-    const { data: existingAdmin } = await supabase
-      .from("users")
-      .select("firebase_uid")
-      .eq("email", adminEmail)
-      .single();
-      
-    if (existingAdmin && existingAdmin.firebase_uid) {
-      logger.info("Admin user already seeded in DB. Skipping initialization.");
-      return;
-    }
-
     let firebaseUid = "";
     try {
       const fbUser = await firebaseAuth.getUserByEmail(adminEmail);
@@ -50,7 +38,7 @@ async function ensureAdminUser() {
           displayName: "Master Admin"
         });
         firebaseUid = fbUser.uid;
-        logger.info({ adminEmail }, "Firebase Admin user created.");
+        logger.info({ adminEmail }, "Firebase Admin user created in Firebase Auth.");
       } else {
         throw err;
       }
