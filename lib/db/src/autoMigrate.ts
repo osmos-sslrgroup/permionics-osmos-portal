@@ -19,12 +19,14 @@ export async function autoMigrate() {
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         firebase_uid TEXT NOT NULL UNIQUE,
-        email TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
         role TEXT NOT NULL DEFAULT 'user',
         display_name TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+      CREATE UNIQUE INDEX IF NOT EXISTS users_email_key ON users(email);
+      CREATE UNIQUE INDEX IF NOT EXISTS users_firebase_uid_key ON users(firebase_uid);
 
       CREATE TABLE IF NOT EXISTS case_studies (
         id SERIAL PRIMARY KEY,
