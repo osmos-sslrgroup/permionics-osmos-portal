@@ -1,8 +1,9 @@
+import "./lib/env";
 import app from "./app";
 import { logger } from "./lib/logger";
 import { firebaseAuth } from "./lib/firebase-admin";
 import { getAdminEmail, getAdminPassword } from "./lib/auth";
-import { supabase } from "./lib/supabase";
+import { supabase } from "./lib/db";
 
 const rawPort = process.env["PORT"] || "5000";
 

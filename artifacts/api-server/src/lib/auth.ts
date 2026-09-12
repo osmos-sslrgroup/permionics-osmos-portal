@@ -76,7 +76,7 @@ export async function getAdminPassword(): Promise<string> {
     return cachedAdminPassword;
   }
 
-  const { supabase } = await import("./supabase");
+  const { supabase } = await import("./db");
   try {
     const { data } = await supabase
       .from("questionnaires")
@@ -99,7 +99,7 @@ export async function getAdminPassword(): Promise<string> {
 }
 
 export async function setAdminPassword(newPassword: string): Promise<boolean> {
-  const { supabase } = await import("./supabase");
+  const { supabase } = await import("./db");
   try {
     const { data: existing } = await supabase
       .from("questionnaires")
