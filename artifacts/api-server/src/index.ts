@@ -67,8 +67,8 @@ async function ensureAdminUser() {
     if (error) throw error;
     logger.info("Admin user successfully synced to Supabase DB.");
 
-  } catch (error) {
-    logger.error({ error }, "Failed to initialize Admin user");
+  } catch (error: any) {
+    logger.error({ error: error?.message || error }, "Failed to initialize Admin user");
   }
 }
 
