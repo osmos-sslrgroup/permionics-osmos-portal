@@ -20,12 +20,19 @@ import logoWhite from "@assets/logo_white.png";
 import permionicsP from "@assets/permionics_P_exact_1783575144366.png";
 import osmosLogo from "@assets/osmos_logo_blue_transparent.png";
 
-const navItems = [
+interface NavItem {
+  href: string;
+  label: string;
+  icon: any;
+  external?: boolean;
+}
+
+const navItems: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/library", label: "Library", icon: BookOpen },
   { href: "/generator", label: "Generator", icon: FileText },
   { href: "/questionnaire", label: "Questionnaire", icon: ClipboardList },
-  { href: "https://pace-permionics.up.railway.app/index.html", label: "PACE", icon: Monitor, external: true },
+  { href: "/pace", label: "PACE", icon: Monitor },
   { href: "/assistant", label: "Osmos AI", icon: MessageSquare },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

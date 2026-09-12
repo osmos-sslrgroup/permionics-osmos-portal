@@ -16,6 +16,7 @@ import CaseStudyDetail from './pages/library/detail';
 import GeneratorPage from './pages/generator/index';
 import QuestionnairePage from './pages/questionnaire/index';
 import AssistantPage from './pages/assistant/index';
+import PacePage from './pages/pace/index';
 import SettingsPage from './pages/settings/index';
 import NotFound from '@/pages/not-found';
 
@@ -71,6 +72,14 @@ function Router() {
         <ProtectedRoute allowedRoles={["admin", "operator"]}>
           <AppLayout>
             <QuestionnairePage />
+          </AppLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/pace">
+        <ProtectedRoute>
+          <AppLayout>
+            <PacePage />
           </AppLayout>
         </ProtectedRoute>
       </Route>
