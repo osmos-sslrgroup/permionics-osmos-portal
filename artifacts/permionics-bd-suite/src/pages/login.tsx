@@ -184,7 +184,7 @@ export default function LoginPage() {
                     placeholder="Enter your name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="pl-10 h-10 rounded-lg border border-slate-200 text-xs font-semibold"
+                    className="pl-10 h-10 rounded-lg border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 text-xs font-semibold focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
                   />
                 </div>
               </div>
@@ -201,7 +201,7 @@ export default function LoginPage() {
                   placeholder="name@company.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10 h-10 rounded-lg border border-slate-200 text-xs font-semibold"
+                  className="pl-10 h-10 rounded-lg border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 text-xs font-semibold focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
                 />
               </div>
             </div>
@@ -223,7 +223,7 @@ export default function LoginPage() {
                     placeholder="Enter password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 h-10 rounded-lg border border-slate-200 text-xs font-semibold"
+                    className="pl-10 h-10 rounded-lg border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 text-xs font-semibold focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
                     required
                   />
                 </div>

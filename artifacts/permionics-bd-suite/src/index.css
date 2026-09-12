@@ -384,7 +384,7 @@
   background: hsl(217 91% 60% / 0.5);
 }
 
-/* ── Input / Select dark mode fix ──────────────────────────────────────────── */
+/* ── Input / Select dark mode & legibility fix ──────────────────────────────── */
 .dark input[type="range"] {
   accent-color: hsl(var(--primary));
 }
@@ -392,3 +392,18 @@
   background: hsl(var(--card));
   color: hsl(var(--foreground));
 }
+
+/* Ensure input elements inside white cards are always dark and readable */
+.bg-white input,
+.bg-white input:-webkit-autofill {
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  transition: background-color 50000s ease-in-out 0s !important;
+}
+
