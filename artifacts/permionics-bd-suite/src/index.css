@@ -313,47 +313,63 @@
 
 @media print {
   @page {
-    margin: 0;
-    size: auto;
+    size: A4 portrait;
+    margin: 8mm 0mm;
   }
   
-  html, body, #root, div.flex.h-screen.w-full {
-    margin: 0 !important;
-    padding: 0 !important;
+  html, body, #root, #root > div, main, div, section {
     height: auto !important;
-    min-height: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
     overflow: visible !important;
-    background: white !important;
-    zoom: 1 !important;
-    font-size: 16px !important;
-    display: block !important;
+    position: static !important;
   }
 
-  .print-hide {
+  body {
+    background: white !important;
+    color: black !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .print-hide,
+  nav,
+  aside,
+  header,
+  .osmos-chat-widget,
+  [role="dialog"] header,
+  [role="dialog"] footer {
     display: none !important;
+  }
+
+  #cs-root,
+  .print-full {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    display: block !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   .cs-page-break {
     break-after: page !important;
     page-break-after: always !important;
+    height: 0 !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   .print-avoid-break {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
-  }
-
-  main,
-  .print-full {
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border: none !important;
-    box-shadow: none !important;
-    border-radius: 0 !important;
-    overflow: visible !important;
-    display: block !important;
   }
 }
 
