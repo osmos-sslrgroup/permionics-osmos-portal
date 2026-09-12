@@ -44,19 +44,10 @@ async function ensureAdminUser() {
       }
     }
 
-    // Upsert into PostgreSQL `users` table
-    const { error } = await supabase.from("users").upsert({
-      email: adminEmail,
-      display_name: "Master Admin",
-      role: "admin",
-      firebase_uid: firebaseUid
-    }, { onConflict: "email" });
-
-    if (error) throw error;
-    logger.info("Admin user successfully synced to PostgreSQL DB.");
-
+    // PostgreSQL insert is now handled by autoMigrate.ts
+    // We only need to ensure the Firebase user exists here.
   } catch (error: any) {
-    logger.error({ error: error?.message || error }, "Failed to initialize Admin user");
+    logger.error({ error: error?.message || error }, "Failed to initialize Admin user in Firebase");
   }
 }
 

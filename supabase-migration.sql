@@ -1,3 +1,12 @@
+-- ─────────────────────────────────────────────────────────────────────────────
+-- ⚠️ LEGACY REFERENCE ONLY
+-- This file is maintained for reference purposes and for manual Supabase setups.
+-- The active, single source of truth for database migrations is now:
+-- `lib/db/src/autoMigrate.ts`
+-- It automatically runs on server startup and applies these schema structures
+-- and seed data idempotently.
+-- ─────────────────────────────────────────────────────────────────────────────
+
 -- Permionics BD Suite - Supabase Migration (Full)
 -- Run this entire script in Supabase SQL Editor
 -- Safe to run multiple times (uses IF NOT EXISTS / ON CONFLICT DO NOTHING)
