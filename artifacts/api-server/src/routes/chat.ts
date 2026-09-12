@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { requireAuth } from "../middlewares/requireAuth";
 import { supabase } from "../lib/db";
+import { debugLog } from "../lib/modes";
 import Groq from "groq-sdk";
 import { GoogleGenAI } from "@google/genai";
 
@@ -128,8 +129,10 @@ let cachedChatData: ChatCache | null = null;
 const CACHE_TTL_MS = 15000; // 15 seconds
 
 async function getChatData() {
+  debugLog("CHAT_DB", "Fetching documents from Supabase/cache");
   const now = Date.now();
   if (cachedChatData && (now - cachedChatData.lastFetched < CACHE_TTL_MS)) {
+    debugLog("CHAT_DB", "Returning cached chat data", { ageMs: now - cachedChatData.lastFetched });
     return cachedChatData;
   }
 
@@ -161,6 +164,7 @@ async function getChatData() {
 router.post("/chat", requireAuth, async (req, res): Promise<void> => {
   try {
     const { message, history = [] } = req.body;
+    debugLog("CHAT_REQ", "Received chat message", { message, historySize: history.length });
 
     if (!message) {
       res.status(400).json({ error: "Message is required" });
@@ -173,6 +177,8 @@ router.post("/chat", requireAuth, async (req, res): Promise<void> => {
       .replace(/[^a-z0-9\s]/g, " ")
       .split(/\s+/)
       .filter((w: string) => w.length >= 3 && !STOP_WORDS.has(w));
+
+    debugLog("CHAT_TOKENS", "Extracted search terms", { searchTerms });
 
     // ── 1. Fetch documents from cache/database ─────────────────────────────
     const chatData = await getChatData();
@@ -271,6 +277,7 @@ router.post("/chat", requireAuth, async (req, res): Promise<void> => {
     }
 
     // ── 4. Build system prompt ──────────────────────────────────────────────
+    debugLog("CHAT_CONTEXT", "Building system context", { modeLabel, contextBlocksCount: contextBlocks.length });
     const systemContext = `You are OSMOS Assistant — an expert project intelligence AI for Permionics Membranes Pvt. Ltd., a leading membrane technology company specialising in Reverse Osmosis (RO), Ultrafiltration (UF), Nanofiltration (NF), MBR, and Zero Liquid Discharge (ZLD) systems.
 
 Your role:
@@ -300,7 +307,9 @@ ${contextBlocks.join("\n\n")}`;
       { role: "user", content: message },
     ];
 
+    debugLog("CHAT_LLM", "Calling LLM with failovers");
     const fullResponse = await callLLMWithFailovers(systemContext, messages, message, req.log);
+    debugLog("CHAT_RES", "Received LLM response", { length: fullResponse.length });
 
     // ── 6. Save to chat history ─────────────────────────────────────────────
     try {

@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { requireAuth } from "../middlewares/requireAuth";
 import { supabase } from "../lib/db";
+import { debugLog } from "../lib/modes";
 import fs from "fs";
 import path from "path";
 import multer from "multer";
@@ -43,6 +44,8 @@ router.get("/case-studies", requireAuth, async (req, res): Promise<void> => {
       sector?: string;
       technology?: string;
     };
+
+    debugLog("API_REQ", "GET /case-studies", { search, sector, technology });
 
     let dbQuery = supabase.from("case_studies").select("*");
 
@@ -91,6 +94,7 @@ router.get("/case-studies", requireAuth, async (req, res): Promise<void> => {
 router.post("/case-studies", requireAuth, async (req, res): Promise<void> => {
   try {
     const body = req.body;
+    debugLog("API_REQ", "POST /case-studies", { clientName: body.clientName, sector: body.sector });
     const insertData = {
       client_name: body.clientName,
       sector: body.sector,
@@ -391,12 +395,14 @@ router.delete("/case-creator/:id", requireAuth, async (req, res): Promise<void> 
 // Upload case study PDF directly to Case Library
 router.post("/case-studies/upload", requireAuth, upload.single("file"), async (req, res): Promise<void> => {
   if (!req.file) {
+    debugLog("API_ERR", "POST /case-studies/upload - No file uploaded");
     res.status(400).json({ error: "No file uploaded" });
     return;
   }
 
   const tempPath = req.file.path;
   const originalName = req.file.originalname;
+  debugLog("API_REQ", "POST /case-studies/upload", { originalName, size: req.file.size });
 
   try {
     // 1. Sanitize name
@@ -419,6 +425,7 @@ router.post("/case-studies/upload", requireAuth, upload.single("file"), async (r
 
     // Fallback to Gemini OCR if text is empty or too short (scanned PDF)
     const geminiKey = process.env["GEMINI_API_KEY"] ?? process.env["GOOGLE_API_KEY"] ?? "";
+    debugLog("OCR_FALLBACK", "Checking if Gemini OCR is needed", { fullTextLength: fullText?.length || 0, hasGeminiKey: !!geminiKey });
     if ((!fullText || fullText.length < 50) && geminiKey) {
       try {
         req.log.info("Text is empty or short; falling back to Gemini Vision OCR for scanned PDF...");
