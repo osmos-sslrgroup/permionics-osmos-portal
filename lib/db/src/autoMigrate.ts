@@ -1,9 +1,13 @@
 import { pool } from "./index";
-import { getAdminEmail, getAdminPassword } from "../../../artifacts/api-server/src/lib/auth";
 
 function logAutoMigrate(message: string) {
   console.log(`[AUTO_MIGRATE] ${message}`);
 }
+
+function getAdminEmail(): string {
+  return (process.env["ADMIN_EMAIL"] || "admin@permionics.com").toLowerCase().trim();
+}
+
 
 export async function autoMigrate() {
   if (!process.env.DATABASE_URL) {
