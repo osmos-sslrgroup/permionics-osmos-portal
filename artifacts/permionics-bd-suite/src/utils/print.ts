@@ -28,18 +28,25 @@ export async function printCaseStudy() {
 
     const imgData = canvas.toDataURL('image/jpeg', 1.0);
 
-    // Set width to standard A4 width (210mm) and calculate height based on element aspect ratio
-    const imgWidth = 210;
+    const imgWidth = 210; // Standard A4 width in mm
+    const pageHeight = 297; // Standard A4 height in mm
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-    // Create PDF with dynamic page size to fit content edge-to-edge
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: [imgWidth, imgHeight]
-    });
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    let heightLeft = imgHeight;
+    let position = 0;
 
-    pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+    // First page
+    pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+
+    // Remaining pages
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
     
     // Save the PDF
     pdf.save(`Permionics_Case_Study_${new Date().toISOString().split('T')[0]}.pdf`);
