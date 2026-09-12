@@ -1,27 +1,33 @@
-import { initializeApp, getApps, cert, applicationDefault } from "firebase-admin/app";
+import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getAuth, Auth } from "firebase-admin/auth";
 
 const initFirebaseAdmin = (): Auth => {
   if (getApps().length > 0) return getAuth();
 
+  const isEmulator = Boolean(process.env.FIREBASE_AUTH_EMULATOR_HOST);
+
   try {
-    let credential;
     if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-        credential = cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY));
+      initializeApp({
+        credential: cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)),
+      });
+      console.log("Firebase Admin initialized with Service Account Key.");
     } else {
-        console.warn("FIREBASE_SERVICE_ACCOUNT_KEY not found in environment variables. Firebase Admin might not initialize correctly if not in GCP environment.");
-        credential = applicationDefault();
+      // Offline / Firebase Auth Emulator initialization
+      const projectId = process.env.FIREBASE_PROJECT_ID || "demo-permionics";
+      if (isEmulator) {
+        console.log(`🔥 Firebase Admin connecting to Auth Emulator (${process.env.FIREBASE_AUTH_EMULATOR_HOST})`);
+      } else {
+        console.warn("FIREBASE_SERVICE_ACCOUNT_KEY missing. Initializing Firebase Admin with local demo project.");
+      }
+      initializeApp({ projectId });
     }
-    
-    initializeApp({
-      credential,
-    });
-    console.log("Firebase Admin initialized successfully.");
   } catch (error) {
     console.error("Firebase Admin initialization error", error);
   }
-  
+
   return getAuth();
 };
 
 export const firebaseAuth = initFirebaseAdmin();
+
