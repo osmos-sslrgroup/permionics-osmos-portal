@@ -132,9 +132,17 @@ export function Sidebar() {
 
       {/* Nav items */}
       <nav className="flex-1 overflow-y-auto py-4 space-y-1 px-2">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const active = isActive(item.href);
+        {(() => {
+          const currentRole = (user as any)?.user?.role || "user";
+          const visibleNavItems = navItems.filter((item) => {
+            if (item.href === "/generator" && currentRole === "user") {
+              return false;
+            }
+            return true;
+          });
+          return visibleNavItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.href);
 
           if (item.external) {
             return expanded ? (
@@ -208,7 +216,8 @@ export function Sidebar() {
               </TooltipContent>
             </Tooltip>
           );
-        })}
+        });
+      })()}
       </nav>
 
       {/* User + Logout */}

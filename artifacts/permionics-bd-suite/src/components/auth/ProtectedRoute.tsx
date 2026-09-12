@@ -50,8 +50,17 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
           <p className="text-xs text-muted-foreground mt-2">
             Your account ({currentRole.toUpperCase()}) does not have permission to access this page. Required role: {allowedRoles.join(" or ").toUpperCase()}.
           </p>
+          <div className="mt-4 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 text-left text-xs text-amber-900 dark:text-amber-300">
+            <p className="font-semibold mb-1">Need feature or role access?</p>
+            <p>Please contact <a href="mailto:saikiran@permionics.com" className="font-bold text-indigo-600 dark:text-indigo-400 underline">saikiran@permionics.com</a> for role upgrades or permission inquiries.</p>
+          </div>
           <button
-            onClick={() => setLocation("/")}
+            onClick={() => {
+              try {
+                setLocation("~/");
+              } catch (e) {}
+              window.location.href = "/";
+            }}
             className="mt-6 px-4 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/90 transition-colors"
           >
             Return to Dashboard

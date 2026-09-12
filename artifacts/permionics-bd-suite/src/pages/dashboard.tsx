@@ -1,4 +1,4 @@
-import { useGetDashboardStats, useListCaseStudies } from "@workspace/api-client-react";
+import { useGetDashboardStats, useListCaseStudies, useGetMe } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import {
@@ -106,7 +106,10 @@ function ActionBtn({ href, icon: Icon, label, accent }: { href: string; icon: an
 export default function DashboardPage() {
   const { data: stats, isLoading: statsLoading, isError } = useGetDashboardStats();
   const { data: caseStudiesRes, isLoading: csLoading } = useListCaseStudies();
+  const { data: userData } = useGetMe();
 
+  const userRole = (userData as any)?.user?.role || "user";
+  const canManage = userRole === "admin" || userRole === "operator";
   const isLoading = statsLoading || csLoading;
 
   if (isLoading) {
@@ -188,7 +191,7 @@ export default function DashboardPage() {
         </div>
         {/* Quick actions */}
         <div className="flex items-center gap-2">
-          <ActionBtn href="~/generator" icon={Plus} label="New Case Study" accent="hsl(var(--primary))" />
+          {canManage && <ActionBtn href="~/generator" icon={Plus} label="New Case Study" accent="hsl(var(--primary))" />}
           <ActionBtn href="~/questionnaire" icon={FileText} label="Questionnaire" accent="hsl(var(--secondary))" />
         </div>
       </div>
@@ -404,14 +407,18 @@ export default function DashboardPage() {
               accent: "#3b82f6",
               accentBg: "rgba(59,130,246,0.08)",
             },
-            {
-              href: "~/generator",
-              icon: FileText,
-              title: "Case Study Generator",
-              desc: "Create structured case studies with AI assistance",
-              accent: "#6366f1",
-              accentBg: "rgba(99,102,241,0.08)",
-            },
+            ...(canManage
+              ? [
+                  {
+                    href: "~/generator",
+                    icon: FileText,
+                    title: "Case Study Generator",
+                    desc: "Create structured case studies with AI assistance",
+                    accent: "#6366f1",
+                    accentBg: "rgba(99,102,241,0.08)",
+                  },
+                ]
+              : []),
             {
               href: "~/assistant",
               icon: Activity,
