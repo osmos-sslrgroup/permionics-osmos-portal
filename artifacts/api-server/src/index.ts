@@ -50,7 +50,7 @@ async function ensureAdminUser() {
       display_name: "Master Admin",
       role: "admin",
       firebase_uid: firebaseUid
-    }, { onConflict: "firebase_uid" });
+    }, { onConflict: "email" });
 
     if (error) throw error;
     logger.info("Admin user successfully synced to PostgreSQL DB.");
