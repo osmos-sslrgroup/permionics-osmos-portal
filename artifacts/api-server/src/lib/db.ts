@@ -275,7 +275,12 @@ function createPostgresQueryBuilder(tableName: string) {
     select(fields?: string, options?: { count?: string }) {
       if (fields && fields !== "*") selectFields = fields;
       if (options?.count) isCount = true;
-      action = "select";
+      // Only set action to "select" if no write operation has been started.
+      // When chained after upsert/insert/update/delete (e.g. .upsert().select().single()),
+      // .select() should add RETURNING behaviour, NOT reset to a plain SELECT query.
+      if (action === "select") {
+        action = "select";
+      }
       return builder;
     },
     eq(field: string, value: any) {
