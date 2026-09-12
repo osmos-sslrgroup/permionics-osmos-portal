@@ -15,7 +15,7 @@ import { requireRole } from "../middlewares/requireRole";
 
 const router: IRouter = Router();
 
-// Login endpoint: Authenticate via Firebase ID Token
+// Login endpoint: Authenticate via Firebase ID Token with auto-provisioning sync to PostgreSQL
 router.post("/auth/login", async (req, res): Promise<void> => {
   const { idToken, remember } = req.body as { idToken?: string; remember?: boolean };
 
@@ -27,34 +27,56 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   try {
     const decodedToken = await firebaseAuth.verifyIdToken(idToken);
     const firebaseUid = decodedToken.uid;
-    const email = decodedToken.email;
+    const cleanEmail = String(decodedToken.email || "").toLowerCase().trim();
 
-    // Fetch user from Supabase to get role and check needs_password_reset
-    const { data: user, error } = await supabase
+    // Fetch user from Supabase PostgreSQL by firebase_uid
+    const { data: userByUid } = await supabase
       .from("users")
       .select("*")
       .eq("firebase_uid", firebaseUid)
-      .single();
+      .maybeSingle();
 
-    if (error || !user) {
-       // Fallback by email if they were created before firebase_uid was saved (e.g. legacy admin)
-       const { data: userByEmail } = await supabase
-         .from("users")
-         .select("*")
-         .eq("email", email?.toLowerCase().trim())
-         .single();
-         
-       if (userByEmail) {
-          // Sync UID
-          await supabase.from("users").update({ firebase_uid: firebaseUid }).eq("id", userByEmail.id);
-          const token = await signToken({ id: String(userByEmail.id), email: userByEmail.email, role: userByEmail.role });
-          setSessionCookie(res, token, !!remember);
-          res.json({ authenticated: true, role: userByEmail.role, needsReset: userByEmail.needs_password_reset, message: "Login successful" });
-          return;
-       }
-       
-       res.status(401).json({ error: "User not found in database." });
-       return;
+    let user = userByUid;
+
+    if (!user && cleanEmail) {
+      // Fallback by email
+      const { data: userByEmail } = await supabase
+        .from("users")
+        .select("*")
+        .eq("email", cleanEmail)
+        .maybeSingle();
+
+      if (userByEmail) {
+        await supabase.from("users").update({ firebase_uid: firebaseUid }).eq("id", userByEmail.id);
+        user = { ...userByEmail, firebase_uid: firebaseUid };
+      }
+    }
+
+    // Auto-provision if user exists in Firebase Auth but missing in PostgreSQL users table
+    if (!user && cleanEmail) {
+      const defaultRole = cleanEmail === getAdminEmail() ? "admin" : "user";
+      const { data: newUser, error: autoErr } = await supabase
+        .from("users")
+        .upsert(
+          {
+            name: decodedToken.name || cleanEmail.split("@")[0] || "User",
+            email: cleanEmail,
+            role: defaultRole,
+            firebase_uid: firebaseUid,
+          },
+          { onConflict: "email" }
+        )
+        .select()
+        .maybeSingle();
+
+      if (!autoErr && newUser) {
+        user = newUser;
+      }
+    }
+
+    if (!user) {
+      res.status(401).json({ error: "User not found in database." });
+      return;
     }
 
     const token = await signToken({ id: String(user.id), email: user.email, role: user.role });
@@ -66,7 +88,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   }
 });
 
-// Public User Signup (Creates account with 'user' role)
+// Public User Signup (Creates account with 'user' role & syncs to PostgreSQL)
 router.post("/auth/signup", async (req, res): Promise<void> => {
   const { name, email, password } = req.body;
 
@@ -88,32 +110,43 @@ router.post("/auth/signup", async (req, res): Promise<void> => {
       firebaseUid = fbUser.uid;
     } catch (fbErr: any) {
       if (fbErr.code === "auth/email-already-exists") {
-        res.status(400).json({ error: "An account with this email already exists" });
-        return;
+        try {
+          const existingFbUser = await firebaseAuth.getUserByEmail(cleanEmail);
+          firebaseUid = existingFbUser.uid;
+        } catch {
+          res.status(400).json({ error: "An account with this email already exists in Firebase Auth." });
+          return;
+        }
+      } else {
+        throw fbErr;
       }
-      throw fbErr;
     }
 
-    const { data, error } = await supabase
+    // Upsert into Supabase PostgreSQL users table
+    const { data: dbUser, error: dbErr } = await supabase
       .from("users")
-      .insert({
-        name: name || "",
-        email: cleanEmail,
-        role: "user",
-        firebase_uid: firebaseUid
-      })
+      .upsert(
+        {
+          name: name || cleanEmail.split("@")[0] || "User",
+          email: cleanEmail,
+          role: cleanEmail === getAdminEmail() ? "admin" : "user",
+          firebase_uid: firebaseUid,
+        },
+        { onConflict: "email" }
+      )
       .select()
       .single();
 
-    if (error) {
-      res.status(500).json({ error: "Failed to create account in database" });
+    if (dbErr || !dbUser) {
+      req.log.error({ dbErr }, "Database upsert error during signup");
+      res.status(500).json({ error: "Failed to sync user account to database" });
       return;
     }
 
-    const token = await signToken({ id: String(data.id), email: data.email, role: "user" });
+    const token = await signToken({ id: String(dbUser.id), email: dbUser.email, role: dbUser.role });
     setSessionCookie(res, token, true);
 
-    res.status(201).json({ authenticated: true, role: "user", user: { id: data.id, email: data.email, name: data.name } });
+    res.status(201).json({ authenticated: true, role: dbUser.role, user: { id: dbUser.id, email: dbUser.email, name: dbUser.name } });
   } catch (err: any) {
     res.status(500).json({ error: err?.message || "Internal server error" });
   }
