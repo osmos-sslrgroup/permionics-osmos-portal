@@ -1,14 +1,16 @@
-import { pgTable, serial, text, timestamp, jsonb, uuid } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, jsonb, uuid, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // 1. Users Table
 export const usersTable = pgTable("users", {
-  id: serial("id").primaryKey(),
-  firebaseUid: text("firebase_uid").notNull().unique(),
-  email: text("email").notNull(),
+  id: uuid("id").defaultRandom().primaryKey(),
+  firebaseUid: text("firebase_uid").unique(),
+  email: text("email").notNull().unique(),
+  name: text("name").notNull().default(""),
   role: text("role").notNull().default("user"),
-  displayName: text("display_name"),
+  needsPasswordReset: boolean("needs_password_reset").notNull().default(false),
+  isBlocked: boolean("is_blocked").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
