@@ -190,6 +190,11 @@ function createMockQueryBuilder(tableName: string) {
       isSingle = true;
       return builder;
     },
+    maybeSingle() {
+      // Same as single() but returns null with no error when no row is found.
+      isSingle = true;
+      return builder;
+    },
     insert(payload: any) {
       const rows = Array.isArray(payload) ? payload : [payload];
       const insertedRows = rows.map((row) => {
@@ -311,6 +316,11 @@ function createPostgresQueryBuilder(tableName: string) {
       return builder;
     },
     single() {
+      isSingle = true;
+      return builder;
+    },
+    maybeSingle() {
+      // Same as single() but returns null with no error when no row is found.
       isSingle = true;
       return builder;
     },
