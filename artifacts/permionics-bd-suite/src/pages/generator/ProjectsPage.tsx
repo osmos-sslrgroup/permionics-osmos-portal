@@ -48,9 +48,12 @@ export default function ProjectsPage() {
         method: "POST",
         body: JSON.stringify({ name: newName.trim(), palette: newPalette, data: DEFAULT_DATA }),
       });
-      navigate(`/generator/editor/${res.id}`);
+      navigate(`~/generator/editor/${res.id}`);
+      setIsCreating(false);
+      setNewName("");
     } catch (err: any) {
       toast({ title: "Failed to create", description: err.message, variant: "destructive" });
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -72,7 +75,7 @@ export default function ProjectsPage() {
 
   const openProject = (id: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    navigate(`/generator/editor/${id}`);
+    navigate(`~/generator/editor/${id}`);
   };
 
   return (

@@ -151,7 +151,7 @@ export default function EditorPage({ projectId }: Props) {
             onPaletteChange={handlePaletteChange}
             onChange={handleDataChange}
             onPrint={() => printCaseStudy()}
-            onBack={() => navigate("/generator")}
+            onBack={() => navigate("~/generator")}
             saved={saveStatus === "saved"}
             onSaveNow={handleSaveNow}
             editableMode={editableMode}
