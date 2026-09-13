@@ -84,6 +84,7 @@ export async function autoMigrate() {
       CREATE TABLE IF NOT EXISTS case_creator_projects (
         id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
+        palette TEXT NOT NULL DEFAULT 'classic',
         data JSONB,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -122,6 +123,13 @@ export async function autoMigrate() {
           WHERE table_name = 'users' AND column_name = 'is_blocked'
         ) THEN
           ALTER TABLE users ADD COLUMN is_blocked BOOLEAN NOT NULL DEFAULT false;
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'case_creator_projects' AND column_name = 'palette'
+        ) THEN
+          ALTER TABLE case_creator_projects ADD COLUMN palette TEXT NOT NULL DEFAULT 'classic';
         END IF;
       END $$;
     `);
