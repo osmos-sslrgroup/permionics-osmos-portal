@@ -83,7 +83,7 @@ router.post("/settings/change-password", requireAuth, async (req, res): Promise<
 });
 
 router.get("/settings/status", requireAuth, async (req, res): Promise<void> => {
-  const dbConnected = !!process.env["SUPABASE_URL"] && !!process.env["SUPABASE_SERVICE_KEY"];
+  const dbConnected = !!process.env["DATABASE_URL"];
   const llmConnected = !!process.env["GROQ_API_KEY"] || !!process.env["GEMINI_API_KEY"];
 
   res.json({
