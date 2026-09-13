@@ -80,7 +80,7 @@ export function Sidebar() {
     } catch (err) {
       console.warn("Backend logout request failed/unauthorized, proceeding with local clear", err);
     } finally {
-      setLocation("/login");
+      setLocation("~/login");
     }
   };
 
