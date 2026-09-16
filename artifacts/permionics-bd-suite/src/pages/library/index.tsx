@@ -225,7 +225,12 @@ export default function LibraryPage() {
                         <div className="bg-primary/10 p-2 rounded-md">
                           <FileText className="h-4 w-4 text-primary" />
                         </div>
-                        {cs.clientName || "-"}
+                        <div className="flex flex-col">
+                          <span>{cs.clientName || "-"}</span>
+                          {cs.richData?.projectName && (
+                            <span className="text-xs text-muted-foreground mt-0.5">{cs.richData.projectName}</span>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
