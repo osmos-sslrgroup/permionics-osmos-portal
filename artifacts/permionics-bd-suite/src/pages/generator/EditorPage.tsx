@@ -6,6 +6,7 @@ import { Sidebar } from "./creator_components/Sidebar";
 import { CaseStudyPreview } from "./creator_components/CaseStudyPreview";
 import { printCaseStudy } from "./creator_utils/print";
 import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface Props {
   projectId: number;
@@ -14,6 +15,7 @@ interface Props {
 export default function EditorPage({ projectId }: Props) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [project, setProject] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState<CaseStudyData | null>(null);
@@ -94,7 +96,7 @@ export default function EditorPage({ projectId }: Props) {
         capacity: data.capacity || "",
         results: data.cards ? data.cards.map(c => `${c.number}: ${c.label}`).join(" | ") : "",
         testimonial: data.handshakeCap || null,
-        richData: { ...data, palette },
+        richData: { ...data, palette, projectName: project?.name },
         fullText: `${data.intro || ""}\n\n${data.challengeProblem || ""}\n\n${data.solDesign || ""}\n\n${data.conclusions || ""}`.trim(),
       };
 
@@ -102,6 +104,8 @@ export default function EditorPage({ projectId }: Props) {
         method: "POST",
         body: JSON.stringify(payload),
       });
+
+      queryClient.invalidateQueries({ queryKey: ["caseStudies"] });
 
       toast({
         title: "Published to Library",
