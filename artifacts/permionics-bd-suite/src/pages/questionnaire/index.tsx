@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { customFetch } from '@workspace/api-client-react';
+import { customFetch, useGetMe } from '@workspace/api-client-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
@@ -47,6 +47,9 @@ const SECTOR_COLORS: Record<string, string> = {
 
 export default function QuestionnairePage() {
   const { toast } = useToast();
+  const { data: user } = useGetMe();
+  const currentUserRole = (user as any)?.user?.role || "user";
+  const canEdit = currentUserRole === "admin" || currentUserRole === "operator";
 
   // ── Project list state ─────────────────────────────────────────────────────
   const [view, setView] = useState<'list' | 'builder'>('list');
@@ -244,9 +247,11 @@ export default function QuestionnairePage() {
             <h1 className="text-3xl font-extrabold tracking-tight">Questionnaire Builder</h1>
             <p className="text-muted-foreground mt-1">Build and manage sector-specific technical questionnaires for clients.</p>
           </div>
-          <Button onClick={() => setNewProjectOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" /> New Project
-          </Button>
+          {canEdit && (
+            <Button onClick={() => setNewProjectOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" /> New Project
+            </Button>
+          )}
         </div>
 
         {loadingProjects ? (
@@ -389,19 +394,19 @@ export default function QuestionnairePage() {
               <div className="space-y-2">
                 <div className="space-y-1">
                   <Label className="text-xs">Company Name</Label>
-                  <Input className="h-8 text-xs" placeholder="Company name..." value={sectorState.clientInfo.companyName} onChange={(e) => updateClientInfo('companyName', e.target.value)} />
+                  <Input disabled={!canEdit} className="h-8 text-xs" placeholder="Company name..." value={sectorState.clientInfo.companyName} onChange={(e) => updateClientInfo('companyName', e.target.value)} />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Contact Person</Label>
-                  <Input className="h-8 text-xs" placeholder="Name & designation..." value={sectorState.clientInfo.contactPerson} onChange={(e) => updateClientInfo('contactPerson', e.target.value)} />
+                  <Input disabled={!canEdit} className="h-8 text-xs" placeholder="Name & designation..." value={sectorState.clientInfo.contactPerson} onChange={(e) => updateClientInfo('contactPerson', e.target.value)} />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Location</Label>
-                  <Input className="h-8 text-xs" placeholder="City, State..." value={sectorState.clientInfo.location} onChange={(e) => updateClientInfo('location', e.target.value)} />
+                  <Input disabled={!canEdit} className="h-8 text-xs" placeholder="City, State..." value={sectorState.clientInfo.location} onChange={(e) => updateClientInfo('location', e.target.value)} />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Date</Label>
-                  <Input className="h-8 text-xs" type="date" value={sectorState.clientInfo.date} onChange={(e) => updateClientInfo('date', e.target.value)} />
+                  <Input disabled={!canEdit} className="h-8 text-xs" type="date" value={sectorState.clientInfo.date} onChange={(e) => updateClientInfo('date', e.target.value)} />
                 </div>
               </div>
             </div>
@@ -411,7 +416,8 @@ export default function QuestionnairePage() {
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Sector</h3>
               {SECTORS.map((s) => (
                 <button key={s.id} type="button"
-                  className={`w-full text-left px-3 py-2 rounded text-xs transition-colors ${activeSectorId === s.id ? 'bg-primary text-primary-foreground font-semibold' : 'hover:bg-muted text-foreground'}`}
+                  disabled={!canEdit}
+                  className={`w-full text-left px-3 py-2 rounded text-xs transition-colors ${activeSectorId === s.id ? 'bg-primary text-primary-foreground font-semibold' : 'hover:bg-muted text-foreground'} ${!canEdit ? 'opacity-70 cursor-not-allowed' : ''}`}
                   onClick={() => { if (activeSectorId !== s.id) { setActiveSectorId(s.id); setSectorState(initState(s.id)); } }}
                 >
                   {s.name}
@@ -426,13 +432,17 @@ export default function QuestionnairePage() {
           <Button size="sm" className="w-full bg-primary hover:bg-primary/90" onClick={() => setPreviewOpen(true)}>
             <Eye className="w-4 h-4 mr-2" /> Preview & Export PDF
           </Button>
-          <Button size="sm" variant="secondary" className="w-full" onClick={saveProject} disabled={isSaving}>
-            {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-            Save Project
-          </Button>
-          <Button size="sm" variant="outline" className="w-full border-dashed" onClick={addSection}>
-            <Plus className="w-4 h-4 mr-2" /> Add Section
-          </Button>
+          {canEdit && (
+            <>
+              <Button size="sm" variant="secondary" className="w-full" onClick={saveProject} disabled={isSaving}>
+                {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                Save Project
+              </Button>
+              <Button size="sm" variant="outline" className="w-full border-dashed" onClick={addSection}>
+                <Plus className="w-4 h-4 mr-2" /> Add Section
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -444,9 +454,11 @@ export default function QuestionnairePage() {
               <h1 className="text-xl font-bold">{activeSector?.name ?? activeSectorId} Questionnaire</h1>
               <p className="text-sm text-muted-foreground">{sectorState.questions.length} questions across {sectorState.sections.length} sections</p>
             </div>
-            <Button size="sm" variant="outline" onClick={() => addQuestion(undefined)}>
-              <Plus className="w-4 h-4 mr-2" /> Add Question
-            </Button>
+            {canEdit && (
+              <Button size="sm" variant="outline" onClick={() => addQuestion(undefined)}>
+                <Plus className="w-4 h-4 mr-2" /> Add Question
+              </Button>
+            )}
           </div>
 
           {sectorState.sections.length === 0 && sectorState.questions.length === 0 && (
@@ -476,6 +488,7 @@ export default function QuestionnairePage() {
                 onDragStart={handleDragStart}
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
+                canEdit={canEdit}
               />
             );
           })}
@@ -500,6 +513,7 @@ export default function QuestionnairePage() {
                     onDragStart={handleDragStart}
                     onDragOver={handleDragOver}
                     onDrop={handleDrop}
+                    canEdit={canEdit}
                   />
                 ))}
               </div>

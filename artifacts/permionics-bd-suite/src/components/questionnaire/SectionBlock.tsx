@@ -31,6 +31,7 @@ interface SectionBlockProps {
   onDragStart: (e: React.DragEvent, id: string) => void;
   onDragOver: (e: React.DragEvent, id: string) => void;
   onDrop: (e: React.DragEvent, id: string) => void;
+  canEdit?: boolean;
 }
 
 export function SectionBlock({
@@ -45,7 +46,8 @@ export function SectionBlock({
   onMoveQuestionDown,
   onDragStart,
   onDragOver,
-  onDrop
+  onDrop,
+  canEdit = true
 }: SectionBlockProps) {
   const [isEditingTitle, setIsEditingTitle] = React.useState(false);
   const [titleValue, setTitleValue] = React.useState(section.title);
@@ -95,8 +97,8 @@ export function SectionBlock({
             />
           ) : (
             <h3
-              className="text-sm font-semibold text-primary cursor-pointer hover:underline decoration-primary/30 underline-offset-4"
-              onClick={() => setIsEditingTitle(true)}
+              className={`text-sm font-semibold text-primary ${canEdit ? 'cursor-pointer hover:underline decoration-primary/30 underline-offset-4' : ''}`}
+              onClick={() => canEdit && setIsEditingTitle(true)}
             >
               {section.title}
             </h3>
@@ -107,6 +109,7 @@ export function SectionBlock({
         </div>
 
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity pr-2">
+          {canEdit && (
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
@@ -128,6 +131,7 @@ export function SectionBlock({
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+          )}
         </div>
       </div>
 
@@ -151,21 +155,24 @@ export function SectionBlock({
                 onDragStart={onDragStart}
                 onDragOver={onDragOver}
                 onDrop={onDrop}
+                canEdit={canEdit}
               />
             ))
           )}
 
-          <div className="pt-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onAddQuestion(section.id)}
-              className="w-full border-dashed text-muted-foreground hover:text-primary hover:border-primary/50"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Question to Section
-            </Button>
-          </div>
+          {canEdit && (
+            <div className="pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onAddQuestion(section.id)}
+                className="w-full border-dashed text-muted-foreground hover:text-primary hover:border-primary/50"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Question to Section
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

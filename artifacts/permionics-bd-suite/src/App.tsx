@@ -69,7 +69,7 @@ function Router() {
       </Route>
 
       <Route path="/questionnaire">
-        <ProtectedRoute allowedRoles={["admin", "operator"]}>
+        <ProtectedRoute>
           <AppLayout>
             <QuestionnairePage />
           </AppLayout>

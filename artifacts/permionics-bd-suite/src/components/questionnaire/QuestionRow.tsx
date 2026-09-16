@@ -28,6 +28,7 @@ interface QuestionRowProps {
   onDragStart: (e: React.DragEvent, id: string) => void;
   onDragOver: (e: React.DragEvent, id: string) => void;
   onDrop: (e: React.DragEvent, id: string) => void;
+  canEdit?: boolean;
 }
 
 export function QuestionRow({
@@ -40,7 +41,8 @@ export function QuestionRow({
   onMoveDown,
   onDragStart,
   onDragOver,
-  onDrop
+  onDrop,
+  canEdit = true
 }: QuestionRowProps) {
   const [isEditing, setIsEditing] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -71,27 +73,27 @@ export function QuestionRow({
 
   return (
     <div
-      className="flex items-start gap-3 p-3 bg-card border border-border rounded-md hover:border-primary/40 transition-colors group relative"
-      draggable
-      onDragStart={(e) => onDragStart(e, question.id)}
-      onDragOver={(e) => onDragOver(e, question.id)}
-      onDrop={(e) => onDrop(e, question.id)}
+      className={`flex items-start gap-3 p-3 bg-card border border-border rounded-md hover:border-primary/40 transition-colors group relative ${!canEdit ? 'opacity-90' : ''}`}
+      draggable={canEdit}
+      onDragStart={canEdit ? (e) => onDragStart(e, question.id) : undefined}
+      onDragOver={canEdit ? (e) => onDragOver(e, question.id) : undefined}
+      onDrop={canEdit ? (e) => onDrop(e, question.id) : undefined}
     >
-      <div className="flex flex-col items-center gap-1 mt-1 text-muted-foreground/50 group-hover:text-muted-foreground cursor-grab active:cursor-grabbing">
+      <div className={`flex flex-col items-center gap-1 mt-1 text-muted-foreground/50 ${canEdit ? 'group-hover:text-muted-foreground cursor-grab active:cursor-grabbing' : ''}`}>
         <GripVertical className="w-4 h-4" />
         <div className="flex flex-col gap-0.5">
           <button
             type="button"
-            onClick={() => onMoveUp(question.id)}
-            disabled={index === 0}
+            onClick={() => canEdit && onMoveUp(question.id)}
+            disabled={!canEdit || index === 0}
             className="disabled:opacity-20 hover:text-primary transition-colors"
           >
             <ArrowUp className="w-3 h-3" />
           </button>
           <button
             type="button"
-            onClick={() => onMoveDown(question.id)}
-            disabled={index === totalQuestions - 1}
+            onClick={() => canEdit && onMoveDown(question.id)}
+            disabled={!canEdit || index === totalQuestions - 1}
             className="disabled:opacity-20 hover:text-primary transition-colors"
           >
             <ArrowDown className="w-3 h-3" />
@@ -122,8 +124,8 @@ export function QuestionRow({
               />
             ) : (
               <p
-                className="text-sm text-foreground cursor-text hover:bg-secondary/30 p-1.5 -ml-1.5 rounded transition-colors"
-                onClick={handleEditStart}
+                className={`text-sm text-foreground p-1.5 -ml-1.5 rounded transition-colors ${canEdit ? 'cursor-text hover:bg-secondary/30' : ''}`}
+                onClick={canEdit ? handleEditStart : undefined}
               >
                 {question.text}
                 {question.required && <span className="text-destructive ml-1">*</span>}
@@ -136,6 +138,7 @@ export function QuestionRow({
           <div className="flex items-center gap-2">
             <Label className="text-xs text-muted-foreground font-normal">Type:</Label>
             <Select
+              disabled={!canEdit}
               value={question.type}
               onValueChange={(value: QuestionType) => onUpdate(question.id, { type: value })}
             >
@@ -153,6 +156,7 @@ export function QuestionRow({
 
           <div className="flex items-center gap-2">
             <Switch
+              disabled={!canEdit}
               id={`req-${question.id}`}
               checked={question.required}
               onCheckedChange={(checked) => onUpdate(question.id, { required: checked })}
@@ -166,6 +170,7 @@ export function QuestionRow({
       </div>
 
       <div className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+        {canEdit && (
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
@@ -187,6 +192,7 @@ export function QuestionRow({
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        )}
       </div>
     </div>
   );
