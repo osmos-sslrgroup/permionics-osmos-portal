@@ -234,7 +234,7 @@ export function Sidebar() {
             {user && (
               <div className="px-3 py-2 rounded-xl mb-1" style={{ background: "hsl(var(--sidebar-accent))" }}>
                 <p className="text-xs font-semibold text-white/80 truncate">
-                  {(user as any)?.email ?? "Admin"}
+                  {(user as any)?.user?.email ?? "User"}
                 </p>
                 <p className="text-[10px] text-white/40">Permionics Insights Portal</p>
               </div>
