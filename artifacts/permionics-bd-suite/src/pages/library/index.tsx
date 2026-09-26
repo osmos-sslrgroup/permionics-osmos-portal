@@ -227,8 +227,8 @@ export default function LibraryPage() {
                         </div>
                         <div className="flex flex-col">
                           <span>{cs.clientName || "-"}</span>
-                          {cs.richData?.projectName && (
-                            <span className="text-xs text-muted-foreground mt-0.5">{cs.richData.projectName}</span>
+                          {(cs as any).richData?.projectName && (
+                            <span className="text-xs text-muted-foreground mt-0.5">{(cs as any).richData.projectName}</span>
                           )}
                         </div>
                       </div>
