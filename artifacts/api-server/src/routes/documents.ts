@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth } from "../middlewares/requireAuth";
 import multer from "multer";
 import os from "os";
 import path from "path";
