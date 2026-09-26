@@ -20,7 +20,7 @@ help:
 	@echo "  make docker-backend VERSION=1.2.0"
 
 firebase-emulator:
-	npx firebase-tools emulators:start --only auth --import=./emulator-data --export-on-exit
+	npx firebase-tools emulators:start --only auth --import=./local/firebase-emulator/emulator-data --export-on-exit=./local/firebase-emulator/emulator-data
 
 run-backend:
 	pnpm --filter @workspace/api-server run dev
