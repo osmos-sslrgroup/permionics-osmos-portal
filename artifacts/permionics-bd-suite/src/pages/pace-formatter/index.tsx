@@ -72,10 +72,18 @@ export default function PaceFormatterPage() {
         if (doc) {
           doc.body.innerHTML = "";
           // Inject some base styles into the iframe to ensure good padding and background
+          // align-items: flex-start prevents the left-clipping bug on small screens!
           const style = doc.createElement("style");
           style.textContent = `
             body { margin: 0; padding: 20px; background-color: #f3f4f6; }
-            .docx-wrapper { background: transparent; padding: 0; }
+            .docx-wrapper { 
+                background: transparent; 
+                padding: 0; 
+                align-items: flex-start !important; 
+            }
+            .docx {
+                margin: 0 auto;
+            }
           `;
           doc.head.appendChild(style);
 

@@ -87,7 +87,7 @@ def main():
                 header.add_paragraph()
                 
             run = header.paragraphs[0].add_run()
-            run.add_picture(logo_path, width=Inches(2.5))
+            run.add_picture(logo_path, width=Inches(1.5))
         except Exception as e:
             print(f"Failed to add logo: {e}")
 
