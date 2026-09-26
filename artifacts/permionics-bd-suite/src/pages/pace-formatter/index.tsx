@@ -196,15 +196,17 @@ export default function PaceFormatterPage() {
           <div className="bg-card border-b px-4 py-3 flex items-center justify-between z-10">
             <h2 className="font-medium text-sm">Preview</h2>
           </div>
-          <div className="flex-1 overflow-auto bg-white/50 dark:bg-black/50 p-4">
-             <div ref={previewRef} className="min-h-full w-full docx-preview-wrapper bg-white shadow-sm border p-4 text-black">
-                {!processedBlob && (
-                  <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-50 mt-32">
-                    <FileEdit className="w-12 h-12 mb-4" />
-                    <p className="text-sm">Upload and process a document to see the preview.</p>
-                  </div>
-                )}
-             </div>
+          <div className="flex-1 overflow-auto bg-white/50 dark:bg-black/50 p-4 relative">
+             {/* Manually manipulated DOM node - React should not manage its children */}
+             <div ref={previewRef} className={`min-h-full w-full docx-preview-wrapper bg-white shadow-sm border p-4 text-black ${!processedBlob ? 'hidden' : ''}`} />
+             
+             {/* React controlled placeholder */}
+             {!processedBlob && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground opacity-50">
+                  <FileEdit className="w-12 h-12 mb-4" />
+                  <p className="text-sm">Upload and process a document to see the preview.</p>
+                </div>
+             )}
           </div>
         </div>
       </div>
