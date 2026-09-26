@@ -37,7 +37,7 @@ router.post(
       const pyOutputPath = path.join(os.tmpdir(), `py_out_${Date.now()}.docx`);
       const finalOutputPath = path.join(os.tmpdir(), `final_out_${Date.now()}.docx`);
       
-      const pythonScriptPath = path.join(__dirname, "../lib/formatter.py");
+      const pythonScriptPath = path.join(process.cwd(), "src", "lib", "formatter.py");
       
       // 1. Run Python script to replace text
       // We pass the args safely
