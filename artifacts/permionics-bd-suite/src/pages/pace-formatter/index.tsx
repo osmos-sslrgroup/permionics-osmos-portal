@@ -12,7 +12,7 @@ export default function PaceFormatterPage() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processedBlob, setProcessedBlob] = useState<Blob | null>(null);
-  const previewRef = useRef<HTMLDivElement>(null);
+  const previewRef = useRef<HTMLIFrameElement>(null);
   
   const [formData, setFormData] = useState({
     projectName: "",
@@ -68,12 +68,24 @@ export default function PaceFormatterPage() {
 
       // Render Preview
       if (previewRef.current) {
-        previewRef.current.innerHTML = "";
-        docx.renderAsync(blob, previewRef.current, previewRef.current, {
-           inWrapper: true,
-           ignoreWidth: false,
-           ignoreHeight: false,
-        });
+        const doc = previewRef.current.contentDocument;
+        if (doc) {
+          doc.body.innerHTML = "";
+          // Inject some base styles into the iframe to ensure good padding and background
+          const style = doc.createElement("style");
+          style.textContent = `
+            body { margin: 0; padding: 20px; background-color: #f3f4f6; }
+            .docx-wrapper { background: transparent; padding: 0; }
+          `;
+          doc.head.appendChild(style);
+
+          docx.renderAsync(blob, doc.body, doc.body, {
+             className: "docx",
+             inWrapper: true,
+             ignoreWidth: false,
+             ignoreHeight: false,
+          });
+        }
       }
     } catch (error) {
       console.error(error);
@@ -196,13 +208,13 @@ export default function PaceFormatterPage() {
           <div className="bg-card border-b px-4 py-3 flex items-center justify-between z-10">
             <h2 className="font-medium text-sm">Preview</h2>
           </div>
-          <div className="flex-1 overflow-auto bg-white/50 dark:bg-black/50 p-4 relative">
+          <div className="flex-1 bg-muted/20 relative">
              {/* Manually manipulated DOM node - React should not manage its children */}
-             <div ref={previewRef} className={`min-h-full w-full docx-preview-wrapper bg-white shadow-sm border p-4 text-black ${!processedBlob ? 'hidden' : ''}`} />
+             <iframe ref={previewRef} title="DOCX Preview" className={`w-full h-full border-none ${!processedBlob ? 'hidden' : ''}`} />
              
              {/* React controlled placeholder */}
              {!processedBlob && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground opacity-50">
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground opacity-50 bg-white/50 dark:bg-black/50">
                   <FileEdit className="w-12 h-12 mb-4" />
                   <p className="text-sm">Upload and process a document to see the preview.</p>
                 </div>
