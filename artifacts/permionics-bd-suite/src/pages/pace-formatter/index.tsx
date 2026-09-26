@@ -1,10 +1,11 @@
 import React, { useState, useRef } from "react";
-import { FileEdit, UploadCloud, File, Image as ImageIcon, Download, Loader2 } from "lucide-react";
+import { FileEdit, UploadCloud, File, Image as ImageIcon, Download, Loader2, Sparkles, CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import * as docx from "docx-preview";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function PaceFormatterPage() {
   const { toast } = useToast();
@@ -12,6 +13,8 @@ export default function PaceFormatterPage() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processedBlob, setProcessedBlob] = useState<Blob | null>(null);
+  const [isPdfProcessing, setIsPdfProcessing] = useState(false);
+  const [downloadSuccess, setDownloadSuccess] = useState<"docx" | "pdf" | null>(null);
   const previewRef = useRef<HTMLIFrameElement>(null);
   
   const [formData, setFormData] = useState({
@@ -71,20 +74,21 @@ export default function PaceFormatterPage() {
         const doc = previewRef.current.contentDocument;
         if (doc) {
           doc.body.innerHTML = "";
-          // Inject some base styles into the iframe to ensure good padding and background
-          // align-items: flex-start prevents the left-clipping bug on small screens!
           const style = doc.createElement("style");
           style.textContent = `
-            body { margin: 0; padding: 20px; background-color: #f3f4f6; }
+            body { margin: 0; padding: 40px; background-color: transparent; }
             .docx-wrapper { 
                 background: transparent; 
                 padding: 0; 
                 align-items: center !important; 
-                /* Physically zoom out the document so the A4 page fits the screen */
-                zoom: 0.65;
+                zoom: 0.7;
             }
             .docx {
                 margin: 0 auto;
+                box-shadow: 0 20px 40px -15px rgba(0,0,0,0.1) !important;
+                border-radius: 12px !important;
+                overflow: hidden !important;
+                border: 1px solid rgba(0,0,0,0.05) !important;
             }
           `;
           doc.head.appendChild(style);
@@ -119,9 +123,11 @@ export default function PaceFormatterPage() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    
+    setDownloadSuccess("docx");
+    setTimeout(() => setDownloadSuccess(null), 2000);
   };
 
-  const [isPdfProcessing, setIsPdfProcessing] = useState(false);
   const handleDownloadPdf = async () => {
     if (!docxFile) return;
     setIsPdfProcessing(true);
@@ -147,6 +153,9 @@ export default function PaceFormatterPage() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      
+      setDownloadSuccess("pdf");
+      setTimeout(() => setDownloadSuccess(null), 2000);
     } catch (error) {
       toast({ title: "Error", description: "Failed to generate PDF", variant: "destructive" });
     } finally {
@@ -155,121 +164,170 @@ export default function PaceFormatterPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl animate-fade-in">
-      <div className="flex items-center justify-between mb-8">
+    <div className="container mx-auto px-6 py-8 max-w-[1400px] animate-fade-in pb-20">
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
         <div className="flex items-center gap-4">
-          <div className="bg-primary/10 p-3 rounded-lg">
-            <FileEdit className="w-8 h-8 text-primary" />
+          <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-sm">
+            <Sparkles className="w-7 h-7" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">PACE Document Formatter</h1>
-            <p className="text-muted-foreground mt-1">Upload a PACE projection DOCX and a Logo to generate a formatted output.</p>
+            <h1 className="text-3xl font-extrabold tracking-tight text-foreground">PACE Formatter</h1>
+            <p className="text-muted-foreground font-medium mt-1">Upload a PACE projection DOCX and a Logo to generate a perfectly formatted PDF output.</p>
           </div>
         </div>
-        {processedBlob && (
-          <div className="flex items-center gap-3">
-            <Button onClick={handleDownload} variant="outline" className="gap-2">
-              <Download className="w-4 h-4" />
-              Download DOCX
-            </Button>
-            <Button onClick={handleDownloadPdf} disabled={isPdfProcessing} className="gap-2">
-              {isPdfProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-              {isPdfProcessing ? "Generating PDF..." : "Download PDF"}
-            </Button>
-          </div>
-        )}
-      </div>
+        
+        <AnimatePresence>
+          {processedBlob && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }} 
+              animate={{ opacity: 1, scale: 1 }} 
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="flex items-center gap-3 bg-white/5 backdrop-blur-md p-2 rounded-2xl border border-border/50 shadow-sm"
+            >
+              <Button 
+                onClick={handleDownload} 
+                variant="outline" 
+                className={`gap-2 h-11 rounded-xl font-bold transition-all ${downloadSuccess === 'docx' ? 'bg-green-500/10 text-green-600 border-green-500/30' : 'hover:border-primary/50'}`}
+              >
+                {downloadSuccess === 'docx' ? <CheckCircle2 className="w-4 h-4" /> : <Download className="w-4 h-4" />}
+                DOCX
+              </Button>
+              <Button 
+                onClick={handleDownloadPdf} 
+                disabled={isPdfProcessing} 
+                className={`gap-2 h-11 rounded-xl font-bold shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all ${downloadSuccess === 'pdf' ? 'bg-green-500 hover:bg-green-600' : 'bg-primary hover:bg-primary/90'}`}
+              >
+                {isPdfProcessing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : downloadSuccess === 'pdf' ? (
+                  <CheckCircle2 className="w-4 h-4 text-white" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                {isPdfProcessing ? "Generating PDF..." : "Download PDF"}
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-[calc(100vh-200px)]">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 h-[calc(100vh-220px)] min-h-[700px]">
         {/* Left Column: Form */}
-        <div className="bg-card rounded-xl border shadow-sm p-6 flex flex-col h-full overflow-y-auto space-y-6">
-          <h2 className="text-xl font-semibold">Document Details</h2>
+        <motion.div 
+          initial={{ opacity: 0, x: -20 }} 
+          animate={{ opacity: 1, x: 0 }} 
+          transition={{ delay: 0.1 }}
+          className="xl:col-span-4 glass rounded-3xl border border-border/50 shadow-xl flex flex-col h-full overflow-hidden relative"
+        >
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/50 to-transparent" />
           
-          <div className="space-y-4">
-            {/* File Uploads */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Raw DOCX File *</Label>
-                <label className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-lg p-4 cursor-pointer hover:border-primary/50 transition-colors bg-muted/20">
-                  <File className="w-6 h-6 text-muted-foreground mb-2" />
-                  <span className="text-xs font-medium text-center truncate w-full px-2">
-                    {docxFile ? docxFile.name : "Select DOCX"}
-                  </span>
-                  <input type="file" accept=".docx" className="hidden" onChange={(e) => handleFileChange(e, setDocxFile)} />
-                </label>
+          <div className="p-6 md:p-8 flex-1 overflow-y-auto space-y-8 no-scrollbar">
+            <h2 className="text-xl font-bold text-foreground">Configuration</h2>
+            
+            <div className="space-y-6">
+              {/* File Uploads */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Raw DOCX File *</Label>
+                  <label className={`flex flex-col items-center justify-center border-2 border-dashed rounded-2xl p-6 cursor-pointer transition-all duration-200 group ${docxFile ? 'border-primary/50 bg-primary/5' : 'border-border/50 bg-background/30 hover:border-primary/40 hover:bg-white/5'}`}>
+                    <File className={`w-8 h-8 mb-3 transition-colors ${docxFile ? 'text-primary' : 'text-muted-foreground group-hover:text-primary/70'}`} />
+                    <span className={`text-sm font-bold text-center truncate w-full px-4 ${docxFile ? 'text-primary' : 'text-foreground'}`}>
+                      {docxFile ? docxFile.name : "Click to browse file"}
+                    </span>
+                    <input type="file" accept=".docx" className="hidden" onChange={(e) => handleFileChange(e, setDocxFile)} />
+                  </label>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Replacement Logo (Optional)</Label>
+                  <label className={`flex flex-col items-center justify-center border-2 border-dashed rounded-2xl p-6 cursor-pointer transition-all duration-200 group ${logoFile ? 'border-primary/50 bg-primary/5' : 'border-border/50 bg-background/30 hover:border-primary/40 hover:bg-white/5'}`}>
+                    <ImageIcon className={`w-8 h-8 mb-3 transition-colors ${logoFile ? 'text-primary' : 'text-muted-foreground group-hover:text-primary/70'}`} />
+                    <span className={`text-sm font-bold text-center truncate w-full px-4 ${logoFile ? 'text-primary' : 'text-foreground'}`}>
+                      {logoFile ? logoFile.name : "Click to browse image"}
+                    </span>
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, setLogoFile)} />
+                  </label>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label>Replacement Logo</Label>
-                <label className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-lg p-4 cursor-pointer hover:border-primary/50 transition-colors bg-muted/20">
-                  <ImageIcon className="w-6 h-6 text-muted-foreground mb-2" />
-                  <span className="text-xs font-medium text-center truncate w-full px-2">
-                    {logoFile ? logoFile.name : "Select Image"}
-                  </span>
-                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, setLogoFile)} />
-                </label>
+              <div className="border-t border-border/30 pt-6 space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="projectName" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Project Name</Label>
+                  <Input id="projectName" name="projectName" value={formData.projectName} onChange={handleInputChange} placeholder="e.g. 23r2BW" className="h-11 rounded-xl bg-background/50 border-border/50 focus-visible:ring-primary/50" />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="date" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Date</Label>
+                  <Input id="date" name="date" type="text" value={formData.date} onChange={handleInputChange} placeholder="e.g. 2025/9/8" className="h-11 rounded-xl bg-background/50 border-border/50 focus-visible:ring-primary/50" />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="company" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Company</Label>
+                  <Input id="company" name="company" value={formData.company} onChange={handleInputChange} placeholder="e.g. IOCL DUMAD" className="h-11 rounded-xl bg-background/50 border-border/50 focus-visible:ring-primary/50" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="designedBy" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Designed By</Label>
+                    <Input id="designedBy" name="designedBy" value={formData.designedBy} onChange={handleInputChange} placeholder="e.g. 121" className="h-11 rounded-xl bg-background/50 border-border/50 focus-visible:ring-primary/50" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="elementModel" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Element Model</Label>
+                    <Input id="elementModel" name="elementModel" value={formData.elementModel} onChange={handleInputChange} placeholder="e.g. HPA RO-8040" className="h-11 rounded-xl bg-background/50 border-border/50 focus-visible:ring-primary/50" />
+                  </div>
+                </div>
               </div>
-            </div>
-
-            {/* Text Inputs */}
-            <div className="space-y-2">
-              <Label htmlFor="projectName">Project Name</Label>
-              <Input id="projectName" name="projectName" value={formData.projectName} onChange={handleInputChange} placeholder="e.g. 23r2BW" />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="date">Date</Label>
-              <Input id="date" name="date" type="text" value={formData.date} onChange={handleInputChange} placeholder="e.g. 2025/9/8" />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="company">Company</Label>
-              <Input id="company" name="company" value={formData.company} onChange={handleInputChange} placeholder="e.g. IOCL DUMAD" />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="designedBy">Designed By</Label>
-              <Input id="designedBy" name="designedBy" value={formData.designedBy} onChange={handleInputChange} placeholder="e.g. 121" />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="elementModel">Element Model</Label>
-              <Input id="elementModel" name="elementModel" value={formData.elementModel} onChange={handleInputChange} placeholder="e.g. HPA RO-8040-LF-WW" />
             </div>
           </div>
 
-          <div className="pt-4 mt-auto border-t">
-            <Button className="w-full" disabled={!docxFile || isProcessing} onClick={handleSubmit}>
+          <div className="p-6 border-t border-border/30 bg-black/5 dark:bg-white/5">
+            <Button 
+              className="w-full h-12 rounded-xl font-bold shadow-[0_0_20px_rgba(var(--primary),0.3)] hover:shadow-[0_0_25px_rgba(var(--primary),0.5)] hover:scale-[1.02] active:scale-[0.98] transition-all text-white bg-primary hover:bg-primary/90" 
+              disabled={!docxFile || isProcessing} 
+              onClick={handleSubmit}
+            >
               {isProcessing ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Processing...
-                </>
+                <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Processing Document...</>
               ) : (
-                "Process Document"
+                <><Sparkles className="w-5 h-5 mr-2" /> Generate Output</>
               )}
             </Button>
           </div>
-        </div>
+        </motion.div>
 
         {/* Right Column: Preview */}
-        <div className="bg-muted/30 rounded-xl border shadow-inner flex flex-col h-full overflow-hidden relative">
-          <div className="bg-card border-b px-4 py-3 flex items-center justify-between z-10">
-            <h2 className="font-medium text-sm">Preview</h2>
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          transition={{ delay: 0.2 }}
+          className="xl:col-span-8 glass rounded-3xl border border-border/50 shadow-xl flex flex-col h-full overflow-hidden"
+        >
+          <div className="bg-secondary/30 border-b border-border/50 px-6 py-4 flex items-center justify-between z-10 backdrop-blur-md">
+            <h2 className="font-bold text-sm tracking-wide text-primary uppercase">Live Preview</h2>
           </div>
-          <div className="flex-1 bg-muted/20 relative">
-             {/* Manually manipulated DOM node - React should not manage its children */}
-             <iframe ref={previewRef} title="DOCX Preview" className={`w-full h-full border-none ${!processedBlob ? 'hidden' : ''}`} />
+          <div className="flex-1 relative overflow-hidden flex items-center justify-center bg-gradient-to-br from-background/50 to-muted/20">
+             {/* Manually manipulated DOM node */}
+             <iframe ref={previewRef} title="DOCX Preview" className={`w-full h-full border-none transition-opacity duration-500 ${!processedBlob ? 'opacity-0 pointer-events-none absolute' : 'opacity-100 relative'}`} />
              
              {/* React controlled placeholder */}
-             {!processedBlob && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground opacity-50 bg-white/50 dark:bg-black/50">
-                  <FileEdit className="w-12 h-12 mb-4" />
-                  <p className="text-sm">Upload and process a document to see the preview.</p>
-                </div>
-             )}
+             <AnimatePresence>
+               {!processedBlob && (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground pointer-events-none"
+                  >
+                    <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mb-6 shadow-inner border border-border/30">
+                      <FileEdit className="w-10 h-10 text-primary/40" />
+                    </div>
+                    <p className="text-lg font-bold text-foreground mb-1">No Document Generated</p>
+                    <p className="text-sm font-medium">Upload a file and process it to view the preview here.</p>
+                  </motion.div>
+               )}
+             </AnimatePresence>
           </div>
-        </div>
+        </motion.div>
       </div>
     </div>
   );
