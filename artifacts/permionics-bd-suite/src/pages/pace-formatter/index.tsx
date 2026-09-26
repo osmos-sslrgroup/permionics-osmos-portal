@@ -121,6 +121,39 @@ export default function PaceFormatterPage() {
     URL.revokeObjectURL(url);
   };
 
+  const [isPdfProcessing, setIsPdfProcessing] = useState(false);
+  const handleDownloadPdf = async () => {
+    if (!docxFile) return;
+    setIsPdfProcessing(true);
+    try {
+      const form = new FormData();
+      form.append("docx", docxFile);
+      if (logoFile) form.append("logo", logoFile);
+      Object.entries(formData).forEach(([key, value]) => form.append(key, value));
+
+      const response = await fetch("/api/documents/format-pace?pdf=true", {
+        method: "POST",
+        body: form,
+      });
+
+      if (!response.ok) throw new Error("Failed to generate PDF");
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `PACE_Formatted_${formData.projectName || "Export"}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to generate PDF", variant: "destructive" });
+    } finally {
+      setIsPdfProcessing(false);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl animate-fade-in">
       <div className="flex items-center justify-between mb-8">
@@ -134,10 +167,16 @@ export default function PaceFormatterPage() {
           </div>
         </div>
         {processedBlob && (
-          <Button onClick={handleDownload} className="gap-2">
-            <Download className="w-4 h-4" />
-            Download DOCX
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button onClick={handleDownload} variant="outline" className="gap-2">
+              <Download className="w-4 h-4" />
+              Download DOCX
+            </Button>
+            <Button onClick={handleDownloadPdf} disabled={isPdfProcessing} className="gap-2">
+              {isPdfProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              {isPdfProcessing ? "Generating PDF..." : "Download PDF"}
+            </Button>
+          </div>
         )}
       </div>
 

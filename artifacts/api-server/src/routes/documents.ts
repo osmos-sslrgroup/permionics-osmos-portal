@@ -64,13 +64,33 @@ router.post(
       
       await execAsync(`python "${pythonScriptPath}" ${args}`);
       
-      // 3. Send final file back
-      res.download(finalOutputPath, "Formatted_Projection.docx", (err) => {
-        // Cleanup temp files
-        fs.unlink(inputDocxPath, () => {});
-        fs.unlink(pyOutputPath, () => {});
-        if (actualLogoPath !== "dummy_logo") fs.unlink(actualLogoPath, () => {});
-      });
+      // 2. Send final file back (or convert to PDF if requested)
+      const wantPdf = req.query.pdf === "true";
+      
+      if (wantPdf) {
+        const pyOutputPdf = path.join(os.tmpdir(), `final_out_${Date.now()}.pdf`);
+        // Use docx2pdf to convert the docx to pdf
+        const docx2pdfScript = `python -c "from docx2pdf import convert; convert('${finalOutputPath.replace(/\\/g, '\\\\')}', '${pyOutputPdf.replace(/\\/g, '\\\\')}')"`;
+        try {
+            await execAsync(docx2pdfScript);
+            res.download(pyOutputPdf, "Formatted_Projection.pdf", (err) => {
+              fs.unlink(inputDocxPath, () => {});
+              fs.unlink(pyOutputPath, () => {});
+              fs.unlink(pyOutputPdf, () => {});
+              if (actualLogoPath !== "dummy_logo") fs.unlink(actualLogoPath, () => {});
+            });
+        } catch (pdfErr) {
+            req.log.error({ err: pdfErr }, "Failed to convert DOCX to PDF");
+            res.status(500).json({ error: "Failed to generate PDF" });
+        }
+      } else {
+        res.download(finalOutputPath, "Formatted_Projection.docx", (err) => {
+          // Cleanup temp files
+          fs.unlink(inputDocxPath, () => {});
+          fs.unlink(pyOutputPath, () => {});
+          if (actualLogoPath !== "dummy_logo") fs.unlink(actualLogoPath, () => {});
+        });
+      }
 
     } catch (error: any) {
       req.log.error({ err: error }, "Failed to format DOCX");
