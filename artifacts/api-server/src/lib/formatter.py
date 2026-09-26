@@ -75,11 +75,21 @@ def main():
                     p.text = f"{label} {new_value}"
 
     # 3. Replace Header Logo
-    # Since python-docx doesn't easily let us replace an existing image in the header while keeping its exact position,
-    # the best way is to clear the header paragraph and add a new picture, OR we can just unzip and overwrite the media.
-    # Actually, replacing the image directly via python-docx is hard.
-    # We will let the Node.js script handle the logo replacement via adm-zip!
-    # Node.js will replace `word/media/image1.png`. We will just save the document here.
+    if logo_path and logo_path != "dummy_logo":
+        try:
+            # We add logo to the first section header
+            header = doc.sections[0].header
+            # Clear existing paragraphs (this removes old text/logos in the header)
+            for p in header.paragraphs:
+                p.clear()
+            
+            if len(header.paragraphs) == 0:
+                header.add_paragraph()
+                
+            run = header.paragraphs[0].add_run()
+            run.add_picture(logo_path, width=Inches(2.5))
+        except Exception as e:
+            print(f"Failed to add logo: {e}")
 
     doc.save(output_docx)
     print("SUCCESS")

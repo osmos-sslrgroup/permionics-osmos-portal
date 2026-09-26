@@ -70,7 +70,7 @@ export default function PaceFormatterPage() {
       if (previewRef.current) {
         previewRef.current.innerHTML = "";
         docx.renderAsync(blob, previewRef.current, previewRef.current, {
-           inWrapper: false,
+           inWrapper: true,
            ignoreWidth: false,
            ignoreHeight: false,
         });
