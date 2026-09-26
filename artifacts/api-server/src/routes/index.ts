@@ -9,6 +9,7 @@ import chatRouter from "./chat";
 import settingsRouter from "./settings";
 import assistantRouter from "./assistant";
 import uploadRouter from "./upload";
+import documentsRouter from "./documents";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(chatRouter);
 router.use(settingsRouter);
 router.use(assistantRouter);
 router.use(uploadRouter);
+router.use(documentsRouter);
 
 export default router;
