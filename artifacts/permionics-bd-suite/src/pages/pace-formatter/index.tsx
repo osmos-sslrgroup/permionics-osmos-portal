@@ -75,14 +75,25 @@ export default function PaceFormatterPage() {
           // align-items: flex-start prevents the left-clipping bug on small screens!
           const style = doc.createElement("style");
           style.textContent = `
-            body { margin: 0; padding: 20px; background-color: #f3f4f6; }
+            body { margin: 0; padding: 10px; background-color: #f3f4f6; }
             .docx-wrapper { 
                 background: transparent; 
                 padding: 0; 
-                align-items: flex-start !important; 
+                align-items: center !important; 
             }
             .docx {
+                width: 100% !important;
+                max-width: 850px;
                 margin: 0 auto;
+                box-sizing: border-box;
+            }
+            .docx table {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+            .docx img {
+                max-width: 100% !important;
+                height: auto !important;
             }
           `;
           doc.head.appendChild(style);
@@ -90,8 +101,8 @@ export default function PaceFormatterPage() {
           docx.renderAsync(blob, doc.body, doc.body, {
              className: "docx",
              inWrapper: true,
-             ignoreWidth: false,
-             ignoreHeight: false,
+             ignoreWidth: true,
+             ignoreHeight: true,
           });
         }
       }
