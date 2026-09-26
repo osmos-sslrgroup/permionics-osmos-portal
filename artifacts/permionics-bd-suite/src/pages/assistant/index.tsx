@@ -1,11 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Send, User, Upload, FileText, Trash2, Loader2, RefreshCw, AlertTriangle, Activity } from "lucide-react";
+import { Send, User, Upload, FileText, Trash2, Loader2, RefreshCw, AlertTriangle, Activity, Sparkles, MessageSquare } from "lucide-react";
 import { useSendChatMessage, ChatSource, customFetch } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { motion, AnimatePresence } from "framer-motion";
 import botAvatar from "@assets/osmos_logo_blue_transparent.png";
 
 // Lightweight markdown renderer — no external dependency
@@ -21,9 +20,9 @@ function MarkdownContent({ text, className = "" }: { text: string; className?: s
     let key = 0;
     while ((match = regex.exec(line)) !== null) {
       if (match.index > last) parts.push(line.slice(last, match.index));
-      if (match[1] !== undefined) parts.push(<strong key={key++} className="font-semibold">{match[1]}</strong>);
-      else if (match[2] !== undefined) parts.push(<em key={key++}>{match[2]}</em>);
-      else if (match[3] !== undefined) parts.push(<code key={key++} className="bg-muted px-1 py-0.5 rounded text-[13px] font-mono">{match[3]}</code>);
+      if (match[1] !== undefined) parts.push(<strong key={key++} className="font-bold text-foreground">{match[1]}</strong>);
+      else if (match[2] !== undefined) parts.push(<em key={key++} className="italic text-foreground/80">{match[2]}</em>);
+      else if (match[3] !== undefined) parts.push(<code key={key++} className="bg-muted/50 px-1.5 py-0.5 rounded-md text-[13px] font-mono border border-border/50">{match[3]}</code>);
       last = regex.lastIndex;
     }
     if (last < line.length) parts.push(line.slice(last));
@@ -40,8 +39,8 @@ function MarkdownContent({ text, className = "" }: { text: string; className?: s
     if (headingMatch) {
       const level = headingMatch[1].length;
       const content = parseInline(headingMatch[2]);
-      const cls = level === 1 ? "text-lg font-bold mt-3 mb-1" : level === 2 ? "text-base font-bold mt-2 mb-1" : "text-sm font-semibold mt-2 mb-0.5";
-      elements.push(<p key={i} className={cls}>{content}</p>);
+      const cls = level === 1 ? "text-xl font-extrabold mt-4 mb-2 text-foreground" : level === 2 ? "text-lg font-bold mt-3 mb-1.5 text-foreground" : "text-base font-bold mt-2 mb-1 text-foreground/90";
+      elements.push(<h4 key={i} className={cls}>{content}</h4>);
       i++; continue;
     }
 
@@ -50,10 +49,15 @@ function MarkdownContent({ text, className = "" }: { text: string; className?: s
       const items: React.ReactNode[] = [];
       while (i < lines.length && /^[\*\-]\s+/.test(lines[i])) {
         const text = lines[i].replace(/^[\*\-]\s+/, "");
-        items.push(<li key={i} className="ml-4 list-disc">{parseInline(text)}</li>);
+        items.push(
+          <li key={i} className="flex gap-2 items-start mt-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary/60 mt-2 flex-shrink-0" />
+            <span>{parseInline(text)}</span>
+          </li>
+        );
         i++;
       }
-      elements.push(<ul key={`ul-${i}`} className="my-1 space-y-0.5">{items}</ul>);
+      elements.push(<ul key={`ul-${i}`} className="my-2 space-y-1 text-muted-foreground">{items}</ul>);
       continue;
     }
 
@@ -61,26 +65,33 @@ function MarkdownContent({ text, className = "" }: { text: string; className?: s
     if (/^\d+\.\s+/.test(line)) {
       const items: React.ReactNode[] = [];
       while (i < lines.length && /^\d+\.\s+/.test(lines[i])) {
-        const text = lines[i].replace(/^\d+\.\s+/, "");
-        items.push(<li key={i} className="ml-4 list-decimal">{parseInline(text)}</li>);
+        const match = lines[i].match(/^(\d+)\.\s+(.*)/);
+        if (match) {
+          items.push(
+            <li key={i} className="flex gap-2 items-start mt-1.5">
+              <span className="font-bold text-primary/80 min-w-[20px]">{match[1]}.</span>
+              <span>{parseInline(match[2])}</span>
+            </li>
+          );
+        }
         i++;
       }
-      elements.push(<ol key={`ol-${i}`} className="my-1 space-y-0.5">{items}</ol>);
+      elements.push(<ol key={`ol-${i}`} className="my-2 space-y-1 text-muted-foreground">{items}</ol>);
       continue;
     }
 
     // Empty line → spacer
     if (line.trim() === "") {
-      elements.push(<div key={i} className="h-2" />);
+      elements.push(<div key={i} className="h-3" />);
       i++; continue;
     }
 
     // Regular paragraph
-    elements.push(<p key={i} className="leading-relaxed">{parseInline(line)}</p>);
+    elements.push(<p key={i} className="leading-relaxed text-muted-foreground">{parseInline(line)}</p>);
     i++;
   }
 
-  return <div className={`text-[15px] space-y-0.5 ${className}`}>{elements}</div>;
+  return <div className={`text-[15px] space-y-1 ${className}`}>{elements}</div>;
 }
 
 interface Message {
@@ -105,6 +116,7 @@ interface Document {
 
 export default function AssistantPage() {
   const [input, setInput] = useState("");
+  const [activeTab, setActiveTab] = useState<"chat" | "library">("chat");
   const [messages, setMessages] = useState<Message[]>(() => {
     try {
       const saved = localStorage.getItem("osmos_ai_chat_history");
@@ -117,6 +129,7 @@ export default function AssistantPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [reprocessingId, setReprocessingId] = useState<string | null>(null);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const reprocessFileInputRef = useRef<HTMLInputElement>(null);
   const reprocessTargetId = useRef<string | null>(null);
@@ -260,266 +273,358 @@ export default function AssistantPage() {
     "List the major chemical processing case studies"
   ];
 
+  const messageVariants: import("framer-motion").Variants = {
+    hidden: { opacity: 0, y: 15, scale: 0.98 },
+    show: { opacity: 1, y: 0, scale: 1, transition: { type: "spring", stiffness: 400, damping: 25 } }
+  };
+
   return (
-    <div className="flex-1 p-6 h-[calc(100vh)] flex flex-col lg:flex-row gap-6 max-w-[1600px] mx-auto">
+    <div className="flex-1 p-4 lg:p-8 h-[calc(100vh)] flex flex-col lg:flex-row gap-6 max-w-[1600px] mx-auto bg-muted/20">
       
       {/* Left: Chat Display */}
-      <div className="flex-1 flex flex-col bg-card border border-border rounded-xl overflow-hidden shadow-sm h-full">
-        <div className="bg-primary px-6 py-4 border-b flex items-center justify-between shadow-sm">
-          <h2 className="text-lg font-bold flex items-center gap-3 text-primary-foreground tracking-wide">
-            <img src={botAvatar} alt="Osmos AI" className="w-8 h-8 object-contain" />
+      <motion.div 
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="flex-1 flex flex-col glass bg-white/80 dark:bg-black/60 backdrop-blur-xl border border-border/50 rounded-3xl overflow-hidden shadow-sm h-full relative"
+      >
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-blue-400 to-indigo-500" />
+        
+        <div className="px-6 py-4 border-b border-border/50 flex items-center justify-between bg-white/40 dark:bg-black/40 backdrop-blur-md z-10">
+          <h2 className="text-xl font-black flex items-center gap-3 tracking-tight text-foreground">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center border border-primary/20 shadow-inner">
+              <img src={botAvatar} alt="Osmos AI" className="w-6 h-6 object-contain" />
+            </div>
             Osmos AI
           </h2>
           <div className="flex items-center gap-4">
-            <span className="text-primary-foreground/70 text-sm font-medium flex items-center gap-1.5">
-              <Activity className="w-4 h-4" /> Connected to Knowledge Base
+            <span className="text-muted-foreground text-xs font-bold flex items-center gap-1.5 bg-muted/50 px-3 py-1.5 rounded-full border border-border/50">
+              <Activity className="w-3.5 h-3.5 text-emerald-500" /> Connected to DB
             </span>
             {messages.length > 0 && (
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => {
                   if (confirm("Are you sure you want to clear this conversation?")) {
                     setMessages([]);
                   }
                 }}
-                className="text-[11px] font-semibold text-primary-foreground/75 hover:text-white bg-white/10 hover:bg-white/20 transition-all px-2.5 py-1.5 rounded-lg border-0 cursor-pointer"
+                className="text-xs rounded-lg"
               >
                 Clear Chat
-              </button>
+              </Button>
             )}
           </div>
         </div>
         
-        <div className="flex-1 overflow-y-auto p-6 space-y-8 bg-gray-50 dark:bg-background">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth">
           {messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center space-y-6">
-              <img src={botAvatar} alt="Osmos AI" className="w-20 h-20 object-contain drop-shadow-md" />
-              <div className="max-w-md">
-                <h3 className="text-2xl font-bold mb-3 tracking-tight">How can I assist you?</h3>
-                <p className="text-muted-foreground mb-8 text-base">Ask me anything. I automatically search and refer to all Library Case Studies, Case Study Creator projects, and uploaded reference PDFs.</p>
-                <div className="flex flex-col gap-3">
-                  {examplePrompts.map((p, i) => (
-                    <Button 
-                      key={i} 
-                      variant="outline" 
-                      className="text-sm rounded-xl py-6 bg-card text-foreground hover:bg-primary/5 hover:text-primary hover:border-primary/50 transition-all justify-start px-6 shadow-sm" 
-                      onClick={() => handleSend(p)}
-                    >
-                      {p}
-                    </Button>
-                  ))}
-                </div>
+            <div className="h-full flex flex-col items-center justify-center text-center space-y-8 max-w-lg mx-auto">
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: "spring", bounce: 0.5 }}
+                className="relative"
+              >
+                <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full" />
+                <img src={botAvatar} alt="Osmos AI" className="relative w-24 h-24 object-contain drop-shadow-xl" />
+              </motion.div>
+              
+              <div>
+                <h3 className="text-3xl font-extrabold mb-3 tracking-tight text-foreground">How can I assist you?</h3>
+                <p className="text-muted-foreground text-base leading-relaxed">
+                  Ask me anything. I automatically search and refer to all Library Case Studies, Creator projects, and uploaded reference PDFs.
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+                {examplePrompts.map((p, i) => (
+                  <motion.button 
+                    key={i} 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.1 + 0.2 }}
+                    className="text-left text-sm font-semibold rounded-2xl p-4 bg-background/50 border border-border/50 text-foreground hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all shadow-sm hover:shadow-md flex items-start gap-3" 
+                    onClick={() => handleSend(p)}
+                  >
+                    <Sparkles className="w-4 h-4 mt-0.5 text-primary/70 flex-shrink-0" />
+                    <span className="leading-snug">{p}</span>
+                  </motion.button>
+                ))}
               </div>
             </div>
           ) : (
-            messages.map((m, i) => (
-              <div key={i} className={`flex gap-4 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                <div className="flex-shrink-0 mt-1">
-                  {m.role === 'user' ? (
-                    <div className="w-10 h-10 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center shadow-md border-2 border-white">
-                      <User className="w-5 h-5" />
-                    </div>
-                  ) : (
-                    <img src={botAvatar} alt="Assistant" className="w-9 h-9 object-contain" />
-                  )}
-                </div>
-                <div className={`max-w-[85%] ${m.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-white dark:bg-card border border-border shadow-sm text-slate-800 dark:text-slate-100'} rounded-2xl p-5`}>
-                  {m.role === 'assistant' ? (
-                    <MarkdownContent text={m.content} />
-                  ) : (
-                    <p className="whitespace-pre-wrap text-[15px] leading-relaxed font-medium">{m.content}</p>
-                  )}
+            <AnimatePresence initial={false}>
+              {messages.map((m, i) => (
+                <motion.div 
+                  key={i} 
+                  variants={messageVariants}
+                  initial="hidden"
+                  animate="show"
+                  className={`flex gap-4 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}
+                >
+                  <div className="flex-shrink-0 mt-2">
+                    {m.role === 'user' ? (
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-800 to-slate-900 text-white flex items-center justify-center shadow-lg border-2 border-background">
+                        <User className="w-5 h-5" />
+                      </div>
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/10 to-transparent flex items-center justify-center shadow-sm border border-primary/20 backdrop-blur-sm">
+                        <img src={botAvatar} alt="Assistant" className="w-6 h-6 object-contain" />
+                      </div>
+                    )}
+                  </div>
                   
-                  {m.contextSummary && m.contextSummary.total > 0 && (
-                    <div className="mt-4 pt-3 border-t border-border flex flex-wrap gap-2 items-center text-xs text-muted-foreground">
-                      <span className="font-semibold mr-1">Searched:</span>
-                      {m.contextSummary.uploadedDocs > 0 && (
-                        <span className="bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded-full">
-                          {m.contextSummary.uploadedDocs} PDF{m.contextSummary.uploadedDocs !== 1 ? 's' : ''}
-                        </span>
-                      )}
-                      {m.contextSummary.caseStudies > 0 && (
-                        <span className="bg-violet-50 text-violet-700 border border-violet-100 px-2 py-0.5 rounded-full">
-                          {m.contextSummary.caseStudies} Library
-                        </span>
-                      )}
-                      {m.contextSummary.creatorProjects > 0 && (
-                        <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded-full">
-                          {m.contextSummary.creatorProjects} Projects
-                        </span>
-                      )}
-                      <span className="bg-gray-100 text-gray-600 border border-gray-200 px-2 py-0.5 rounded-full font-medium">
-                        {m.contextSummary.mode === 'broad_sweep' ? '📚 Full scan' : '🎯 Targeted'}
-                      </span>
-                    </div>
-                  )}
-                  
-                  {m.sources && m.sources.length > 0 && (
-                    <div className="mt-5 pt-4 border-t border-border flex flex-wrap gap-2 items-center">
-                      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground mr-2">Citations:</span>
-                      {m.sources.map(s => (
-                        <div key={s.id} className="text-xs bg-muted/50 border px-3 py-1.5 rounded-md text-foreground font-medium flex items-center gap-2">
-                          <div className="w-1.5 h-1.5 rounded-full bg-primary"></div>
-                          {s.clientName} <span className="text-muted-foreground font-normal">({s.sector})</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <div className={`max-w-[85%] ${
+                    m.role === 'user' 
+                      ? 'bg-foreground text-background shadow-md' 
+                      : 'bg-background/80 border border-border/60 shadow-sm'
+                  } rounded-3xl px-6 py-5 backdrop-blur-md`}>
+                    {m.role === 'assistant' ? (
+                      <MarkdownContent text={m.content} />
+                    ) : (
+                      <p className="whitespace-pre-wrap text-[15px] leading-relaxed font-medium">{m.content}</p>
+                    )}
+                    
+                    {m.contextSummary && m.contextSummary.total > 0 && (
+                      <div className="mt-5 pt-4 border-t border-border/50 flex flex-wrap gap-2 items-center text-xs text-muted-foreground">
+                        <span className="font-bold text-[10px] uppercase tracking-widest mr-1">Context:</span>
+                        {m.contextSummary.uploadedDocs > 0 && (
+                          <span className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 px-2.5 py-1 rounded-full font-bold">
+                            {m.contextSummary.uploadedDocs} PDF{m.contextSummary.uploadedDocs !== 1 ? 's' : ''}
+                          </span>
+                        )}
+                        {m.contextSummary.caseStudies > 0 && (
+                          <span className="bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20 px-2.5 py-1 rounded-full font-bold">
+                            {m.contextSummary.caseStudies} Library
+                          </span>
+                        )}
+                        {m.contextSummary.creatorProjects > 0 && (
+                          <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-full font-bold">
+                            {m.contextSummary.creatorProjects} Projects
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    
+                    {m.sources && m.sources.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-border/50 flex flex-wrap gap-2 items-center">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mr-1">Citations:</span>
+                        {m.sources.map(s => (
+                          <div key={s.id} className="text-xs bg-muted/50 border border-border/50 px-3 py-1.5 rounded-lg text-foreground font-semibold flex items-center gap-2 hover:bg-muted/80 transition-colors cursor-default">
+                            <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+                            {s.clientName} <span className="text-muted-foreground font-medium text-[10px] ml-1">({s.sector})</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          )}
+          
+          {sendChat.isPending && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex gap-4"
+            >
+              <div className="flex-shrink-0 mt-2">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/10 to-transparent flex items-center justify-center shadow-sm border border-primary/20 backdrop-blur-sm opacity-70">
+                  <img src={botAvatar} alt="Assistant" className="w-6 h-6 object-contain" />
                 </div>
               </div>
-            ))
-          )}
-          {sendChat.isPending && (
-            <div className="flex gap-4">
-               <img src={botAvatar} alt="Assistant" className="w-9 h-9 object-contain opacity-60" />
-              <div className="bg-card dark:bg-card rounded-2xl p-5 shadow-sm border flex items-center h-[52px]">
+              <div className="bg-background/80 border border-border/60 rounded-3xl px-6 py-5 shadow-sm backdrop-blur-md flex items-center h-[60px]">
                 <div className="flex gap-1.5">
                   <div className="w-2.5 h-2.5 rounded-full bg-primary/40 animate-bounce"></div>
                   <div className="w-2.5 h-2.5 rounded-full bg-primary/40 animate-bounce" style={{animationDelay: '0.15s'}}></div>
                   <div className="w-2.5 h-2.5 rounded-full bg-primary/40 animate-bounce" style={{animationDelay: '0.3s'}}></div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           )}
           <div ref={messagesEndRef} />
         </div>
-      </div>
+      </motion.div>
 
       {/* Right: Input Area & Library */}
-      <div className="w-full lg:w-[400px] flex flex-col gap-4">
-        <Tabs defaultValue="chat" className="flex-1 flex flex-col">
-          <TabsList className="grid w-full grid-cols-2 mb-4">
-            <TabsTrigger value="chat">Chat Input</TabsTrigger>
-            <TabsTrigger value="library">Document Library</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="chat" className="flex-1 flex flex-col mt-0 h-full">
-            <Card className="flex-1 flex flex-col shadow-sm border-border">
-              <CardHeader className="pb-4 bg-muted/20 border-b">
-                <CardTitle className="text-lg">Query Input</CardTitle>
-                <CardDescription>Formulate your query for the knowledge base.</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-1 flex flex-col p-6">
-                <Textarea 
-                  className="flex-1 min-h-[200px] lg:min-h-0 resize-none border-0 focus-visible:ring-0 px-0 text-base leading-relaxed bg-transparent" 
-                  placeholder="E.g. What is the standard recovery rate for textile ZLD plants using MBR and RO technologies?"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSend(input);
-                    }
-                  }}
-                />
-                <div className="pt-6 mt-auto border-t">
-                  <Button 
-                    size="lg"
-                    className="w-full font-bold text-base h-12" 
-                    disabled={!input.trim() || sendChat.isPending}
-                    onClick={() => handleSend(input)}
-                  >
-                    <Send className="w-5 h-5 mr-2" />
-                    Analyze Query
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="library" className="flex-1 flex flex-col mt-0 h-full">
-            <Card className="flex-1 flex flex-col shadow-sm border-border">
-              <CardHeader className="pb-4 bg-muted/20 border-b">
-                <CardTitle className="text-lg">Reference Library</CardTitle>
-                <CardDescription>Upload PDFs for Gemini OCR processing.</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-1 flex flex-col p-6 space-y-4">
-                <input 
-                  type="file" 
-                  accept="application/pdf"
-                  className="hidden" 
-                  ref={fileInputRef} 
-                  onChange={handleFileUpload} 
-                />
+      <motion.div 
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.1 }}
+        className="w-full lg:w-[420px] flex flex-col gap-4"
+      >
+        <div className="glass bg-white/80 dark:bg-black/60 backdrop-blur-xl border border-border/50 rounded-3xl p-2 shadow-sm">
+           <div className="flex w-full bg-muted/40 p-1.5 rounded-2xl shadow-inner border border-border/50">
+            <button
+              type="button"
+              onClick={() => setActiveTab("chat")}
+              className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all flex justify-center items-center gap-2 ${
+                activeTab === "chat" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <MessageSquare className="w-4 h-4" /> Ask Osmos
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("library")}
+              className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all flex justify-center items-center gap-2 ${
+                activeTab === "library" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <FileText className="w-4 h-4" /> Custom PDFs
+            </button>
+          </div>
+        </div>
+        
+        {activeTab === "chat" && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex-1 flex flex-col glass bg-white/80 dark:bg-black/60 backdrop-blur-xl border border-border/50 rounded-3xl shadow-sm overflow-hidden"
+          >
+            <div className="px-6 py-4 bg-muted/30 border-b border-border/50">
+              <h3 className="text-lg font-bold tracking-tight">Query Input</h3>
+              <p className="text-xs font-medium text-muted-foreground mt-1">Chat context includes the entire knowledge base.</p>
+            </div>
+            
+            <div className="flex-1 flex flex-col p-6">
+              <Textarea 
+                className="flex-1 min-h-[200px] resize-none border-0 focus-visible:ring-0 px-0 text-base leading-relaxed bg-transparent shadow-none" 
+                placeholder="E.g. What is the standard recovery rate for textile ZLD plants using MBR and RO technologies?"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend(input);
+                  }
+                }}
+              />
+              <div className="pt-6 mt-auto border-t border-border/50">
                 <Button 
-                  className="w-full border-dashed border-2 py-8 bg-muted/20 text-muted-foreground hover:bg-primary/5 hover:text-primary hover:border-primary/50" 
-                  variant="outline"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploading}
+                  size="lg"
+                  className="w-full font-bold text-sm h-12 rounded-xl shadow-lg shadow-primary/20" 
+                  disabled={!input.trim() || sendChat.isPending}
+                  onClick={() => handleSend(input)}
                 >
-                  {isUploading ? (
-                    <><Loader2 className="w-6 h-6 mr-3 animate-spin" /> Extracting Text via OCR...</>
-                  ) : (
-                    <><Upload className="w-6 h-6 mr-3" /> Upload PDF Document</>
-                  )}
+                  <Send className="w-4 h-4 mr-2" />
+                  Analyze Query
                 </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
-                {/* Hidden file input for re-OCR reprocessing */}
-                <input
-                  type="file"
-                  accept="application/pdf"
-                  className="hidden"
-                  ref={reprocessFileInputRef}
-                  onChange={handleReprocessUpload}
-                />
-
-                <div className="flex-1 overflow-y-auto mt-4 pr-2 space-y-2">
-                  {documents.length === 0 ? (
-                    <div className="text-center text-sm text-muted-foreground py-8">
-                      No documents uploaded yet.
+        {activeTab === "library" && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex-1 flex flex-col glass bg-white/80 dark:bg-black/60 backdrop-blur-xl border border-border/50 rounded-3xl shadow-sm overflow-hidden"
+          >
+            <div className="px-6 py-4 bg-muted/30 border-b border-border/50">
+              <h3 className="text-lg font-bold tracking-tight">Reference Library</h3>
+              <p className="text-xs font-medium text-muted-foreground mt-1">Upload external PDFs to include them in queries.</p>
+            </div>
+            
+            <div className="flex-1 flex flex-col p-6 space-y-5">
+              <input 
+                type="file" 
+                accept="application/pdf"
+                className="hidden" 
+                ref={fileInputRef} 
+                onChange={handleFileUpload} 
+              />
+              
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className="w-full flex flex-col items-center justify-center p-8 border-2 border-dashed border-border/60 rounded-2xl bg-muted/20 text-muted-foreground hover:bg-primary/5 hover:border-primary/40 hover:text-primary transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed group"
+              >
+                {isUploading ? (
+                  <>
+                    <Loader2 className="w-8 h-8 mb-3 animate-spin text-primary" /> 
+                    <span className="text-sm font-bold">Extracting Text...</span>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-12 h-12 rounded-full bg-background border border-border/50 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                      <Upload className="w-5 h-5" /> 
                     </div>
-                  ) : (
-                    documents.map(doc => (
-                      <div key={doc.id} className={`flex items-center justify-between border p-3 rounded-lg shadow-sm ${
-                        doc.hasContent 
-                          ? 'bg-card text-foreground border-border' 
-                          : 'bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900/50 dark:text-amber-300'
-                      }`}>
-                        <div className="flex items-center gap-2 overflow-hidden flex-1 min-w-0">
+                    <span className="text-sm font-bold text-foreground">Upload PDF Document</span>
+                    <span className="text-xs font-medium mt-1 opacity-70">Will be processed by Gemini Vision OCR</span>
+                  </>
+                )}
+              </button>
+
+              {/* Hidden file input for re-OCR reprocessing */}
+              <input
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                ref={reprocessFileInputRef}
+                onChange={handleReprocessUpload}
+              />
+
+              <div className="flex-1 overflow-y-auto pr-2 space-y-3">
+                {documents.length === 0 ? (
+                  <div className="text-center text-sm font-medium text-muted-foreground py-10">
+                    No reference documents uploaded yet.
+                  </div>
+                ) : (
+                  documents.map(doc => (
+                    <div key={doc.id} className={`flex items-center justify-between border p-3.5 rounded-xl shadow-sm transition-all hover:shadow-md ${
+                      doc.hasContent 
+                        ? 'bg-background/80 border-border/60 text-foreground' 
+                        : 'bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400'
+                    }`}>
+                      <div className="flex items-center gap-3 overflow-hidden flex-1 min-w-0">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm ${doc.hasContent ? 'bg-primary/10 text-primary' : 'bg-amber-500/20 text-amber-600'}`}>
                           {doc.hasContent ? (
-                            <FileText className="w-4 h-4 text-primary flex-shrink-0" />
+                            <FileText className="w-4 h-4" />
                           ) : (
-                            <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                          )}
-                          <div className="truncate text-sm font-medium">{doc.title}</div>
-                          {!doc.hasContent && (
-                            <span className="text-[10px] bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 rounded px-1.5 py-0.5 flex-shrink-0">No text</span>
+                            <AlertTriangle className="w-4 h-4" />
                           )}
                         </div>
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          {!doc.hasContent && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 text-xs text-amber-700 hover:text-amber-900 hover:bg-amber-100 dark:text-amber-400 dark:hover:text-amber-300 dark:hover:bg-amber-950/40 px-2"
-                              disabled={reprocessingId === doc.id}
-                              onClick={() => handleReprocessClick(doc.id)}
-                              title="Re-upload and OCR this document with Gemini Vision"
-                            >
-                              {reprocessingId === doc.id ? (
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                              ) : (
-                                <><RefreshCw className="w-3 h-3 mr-1" />Re-OCR</>
-                              )}
-                            </Button>
-                          )}
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                            onClick={() => handleDeleteDocument(doc.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
+                        <div className="truncate text-sm font-bold">{doc.title}</div>
                       </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
+                      
+                      <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                        {!doc.hasContent && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-xs font-bold border-amber-500/30 text-amber-700 hover:text-amber-900 hover:bg-amber-500/20 dark:text-amber-400 dark:hover:text-amber-300 dark:hover:bg-amber-500/30 px-3 rounded-lg"
+                            disabled={reprocessingId === doc.id}
+                            onClick={() => handleReprocessClick(doc.id)}
+                            title="Re-upload and OCR this document with Gemini Vision"
+                          >
+                            {reprocessingId === doc.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <><RefreshCw className="w-3.5 h-3.5 mr-1.5" />OCR</>
+                            )}
+                          </Button>
+                        )}
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive rounded-lg"
+                          onClick={() => handleDeleteDocument(doc.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </motion.div>
     </div>
   );
 }
