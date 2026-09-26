@@ -131,10 +131,10 @@ export function Sidebar({ data, palette, onPaletteChange, onChange, onPrint, onB
     { id: "style", label: "Style" },
   ];
 
-  const inp = "w-full text-[11px] px-2 py-1.5 border border-border rounded-md bg-card text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors";
-  const ta = inp + " resize-y font-mono";
-  const lbl = "text-[10px] font-medium text-muted-foreground mb-0.5 block";
-  const sec = "text-[9px] font-semibold uppercase tracking-widest text-primary border-b-2 border-primary pb-1 mt-3 mb-2";
+  const inp = "w-full text-xs px-3 py-2 border border-border/50 rounded-xl bg-background/50 text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all shadow-sm";
+  const ta = inp + " resize-y font-mono leading-relaxed";
+  const lbl = "text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block";
+  const sec = "text-xs font-extrabold uppercase tracking-widest text-primary border-b border-primary/20 pb-2 mt-5 mb-4";
   const sel = inp + " cursor-pointer";
 
   function PhotoControls({
@@ -249,10 +249,10 @@ export function Sidebar({ data, palette, onPaletteChange, onChange, onPrint, onB
       </div>
 
       {/* Tabs */}
-      <div className="flex flex-shrink-0 border-b border-border bg-muted/40 overflow-x-auto">
+      <div className="flex flex-shrink-0 border-b border-border/50 bg-black/5 dark:bg-white/5 overflow-x-auto p-2 gap-1.5 backdrop-blur-sm no-scrollbar">
         {tabs.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            className={`flex-1 py-2 text-[10px] font-medium border-b-2 transition-colors whitespace-nowrap px-1 border-0 cursor-pointer ${tab === t.id ? "text-primary border-primary font-bold" : "text-muted-foreground border-transparent hover:text-foreground"}`}>
+            className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all whitespace-nowrap px-2 border-0 cursor-pointer ${tab === t.id ? "bg-primary text-white shadow-md" : "text-muted-foreground bg-transparent hover:bg-black/5 dark:hover:bg-white/10 hover:text-foreground"}`}>
             {t.label}
           </button>
         ))}

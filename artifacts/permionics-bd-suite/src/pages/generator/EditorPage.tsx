@@ -168,61 +168,61 @@ export default function EditorPage({ projectId }: Props) {
       </div>
 
       {/* Preview area */}
-      <div className="print-full" style={{ flex: 1, overflowY: "auto", background: "hsl(var(--background))", display: "flex", flexDirection: "column", alignItems: "center", padding: "16px 16px", gap: "10px", minWidth: 0 }}>
+      <div className="print-full bg-muted/20" style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", padding: "24px 24px", gap: "16px", minWidth: 0 }}>
         {/* Top bar */}
-        <div className="print-hide" style={{ width: "100%", maxWidth: "860px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div className="print-hide glass rounded-2xl px-6 py-4 shadow-sm border border-border/50" style={{ width: "100%", maxWidth: "900px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
             {/* Hamburger toggle */}
             <button
               onClick={() => setSidebarCollapsed((v) => !v)}
               title={sidebarCollapsed ? "Show panel" : "Collapse panel"}
+              className="hover:bg-white/10 transition-colors"
               style={{
-                width: "32px", height: "32px", borderRadius: "6px",
-                background: "hsl(var(--card))", border: "1px solid hsl(var(--border))",
+                width: "36px", height: "36px", borderRadius: "10px",
+                background: "transparent", border: "1px solid hsl(var(--border))",
                 cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-                flexShrink: 0, color: "var(--muted-foreground)",
+                flexShrink: 0, color: "var(--foreground)",
               }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" />
               </svg>
             </button>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <div style={{ width: "1px", height: "16px", background: "hsl(var(--border))" }} />
-            <span style={{ fontSize: "12px", color: "#666", fontWeight: 500 }}>Live Preview</span>
+            <div style={{ width: "1px", height: "20px", background: "hsl(var(--border))" }} />
+            <span style={{ fontSize: "14px", color: "var(--foreground)", fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase" }}>Live Preview</span>
             {editableMode && (
-              <span style={{ fontSize: "11px", background: "#fef3c7", color: "#92400e", padding: "2px 8px", borderRadius: "20px", fontWeight: 600, border: "1px solid #fcd34d" }}>
+              <span className="animate-pulse" style={{ fontSize: "11px", background: "#fef3c7", color: "#92400e", padding: "4px 10px", borderRadius: "20px", fontWeight: 700, border: "1px solid #fcd34d" }}>
                 Click-to-edit ON
               </span>
             )}
           </div>
-          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-            <span style={{ fontSize: "11px", fontWeight: 700, color: saveColor, display: "flex", alignItems: "center", gap: "4px" }}>
-              <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: saveColor }} />
+
+          <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
+            <span style={{ fontSize: "12px", fontWeight: 700, color: saveColor, display: "flex", alignItems: "center", gap: "6px" }}>
+              <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: saveColor, boxShadow: `0 0 10px ${saveColor}` }} className={saveStatus === "saving" ? "animate-ping" : ""} />
               {saveLabel}
             </span>
             <div className="relative group">
               <button
+                className="hover:scale-105 active:scale-95 transition-all"
                 style={{
-                  background: pal.primary, color: "white", border: "none", borderRadius: "7px",
-                  padding: "7px 16px", fontSize: "12px", cursor: "pointer",
-                  display: "flex", alignItems: "center", gap: "6px", fontWeight: 600,
-                  boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+                  background: pal.primary, color: "white", border: "none", borderRadius: "10px",
+                  padding: "10px 20px", fontSize: "13px", cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: "8px", fontWeight: 700,
+                  boxShadow: `0 4px 14px ${pal.primary}60`,
                 }}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                   <polyline points="7 10 12 15 17 10" />
                   <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
                 Export / Print ▾
               </button>
-              <div className="absolute right-0 mt-1 w-48 bg-card border border-border rounded-md shadow-lg hidden group-hover:block z-50 p-1">
+              <div className="absolute right-0 mt-2 w-52 bg-card border border-border/50 rounded-xl shadow-xl hidden group-hover:block z-50 p-1.5 backdrop-blur-md bg-white/90 dark:bg-black/90">
                 <button
                   onClick={() => printCaseStudy()}
-                  className="w-full text-left px-3 py-2 text-xs text-foreground hover:bg-muted rounded flex items-center gap-2 font-medium"
+                  className="w-full text-left px-3 py-2.5 text-xs text-foreground hover:bg-muted rounded-lg flex items-center gap-2 font-bold"
                 >
                   📄 Multi-Page A4 PDF
                 </button>
@@ -231,7 +231,7 @@ export default function EditorPage({ projectId }: Props) {
                     const { exportToDocx } = await import("./creator_utils/exportUtils");
                     exportToDocx();
                   }}
-                  className="w-full text-left px-3 py-2 text-xs text-foreground hover:bg-muted rounded flex items-center gap-2 font-medium"
+                  className="w-full text-left px-3 py-2.5 text-xs text-foreground hover:bg-muted rounded-lg flex items-center gap-2 font-bold"
                 >
                   📝 Word Document (.docx)
                 </button>
@@ -240,7 +240,7 @@ export default function EditorPage({ projectId }: Props) {
                     const { exportToImage } = await import("./creator_utils/exportUtils");
                     exportToImage("png");
                   }}
-                  className="w-full text-left px-3 py-2 text-xs text-foreground hover:bg-muted rounded flex items-center gap-2 font-medium"
+                  className="w-full text-left px-3 py-2.5 text-xs text-foreground hover:bg-muted rounded-lg flex items-center gap-2 font-bold"
                 >
                   🖼️ PNG Image
                 </button>
@@ -249,7 +249,7 @@ export default function EditorPage({ projectId }: Props) {
                     const { exportToImage } = await import("./creator_utils/exportUtils");
                     exportToImage("jpeg");
                   }}
-                  className="w-full text-left px-3 py-2 text-xs text-foreground hover:bg-muted rounded flex items-center gap-2 font-medium"
+                  className="w-full text-left px-3 py-2.5 text-xs text-foreground hover:bg-muted rounded-lg flex items-center gap-2 font-bold"
                 >
                   🖼️ JPEG Image
                 </button>
@@ -258,7 +258,7 @@ export default function EditorPage({ projectId }: Props) {
                     const { triggerNativePrint } = await import("./creator_utils/exportUtils");
                     triggerNativePrint();
                   }}
-                  className="w-full text-left px-3 py-2 text-xs text-foreground hover:bg-muted rounded flex items-center gap-2 font-medium border-t border-border mt-1 pt-2"
+                  className="w-full text-left px-3 py-2.5 text-xs text-foreground hover:bg-muted rounded-lg flex items-center gap-2 font-bold border-t border-border/50 mt-1 pt-2"
                 >
                   🖨️ Direct Print
                 </button>
@@ -267,7 +267,7 @@ export default function EditorPage({ projectId }: Props) {
           </div>
         </div>
 
-        <div className="print-full" style={{ boxShadow: "0 4px 32px rgba(0,0,0,0.18)", width: "794px", flexShrink: 0 }}>
+        <div className="print-full bg-white rounded-xl border border-border/50 mt-2" style={{ boxShadow: "var(--shadow-2xl)", width: "794px", flexShrink: 0, overflow: "hidden" }}>
           <CaseStudyPreview data={data} palette={pal} editable={editableMode} onChange={handleDataChange} />
         </div>
       </div>
