@@ -33,7 +33,17 @@ router.post(
 
       const { projectName, date, company, designedBy, elementModel } = req.body;
       
-      const inputDocxPath = docxFile.path;
+      const inputDocxPath = path.join(os.tmpdir(), `input_${Date.now()}.docx`);
+      fs.renameSync(docxFile.path, inputDocxPath);
+
+      let actualLogoPath = "dummy_logo";
+      if (logoFile) {
+        // Extract extension from originalname (e.g. .png, .jpg)
+        const ext = path.extname(logoFile.originalname) || ".png";
+        actualLogoPath = path.join(os.tmpdir(), `logo_${Date.now()}${ext}`);
+        fs.renameSync(logoFile.path, actualLogoPath);
+      }
+
       const pyOutputPath = path.join(os.tmpdir(), `py_out_${Date.now()}.docx`);
       const finalOutputPath = pyOutputPath; // We will use the output directly
       
@@ -43,7 +53,7 @@ router.post(
       // We pass the args safely
       const args = [
         inputDocxPath,
-        logoFile ? logoFile.path : "dummy_logo",
+        actualLogoPath,
         projectName || "",
         date || "",
         company || "",
@@ -59,8 +69,7 @@ router.post(
         // Cleanup temp files
         fs.unlink(inputDocxPath, () => {});
         fs.unlink(pyOutputPath, () => {});
-        fs.unlink(finalOutputPath, () => {});
-        if (logoFile) fs.unlink(logoFile.path, () => {});
+        if (actualLogoPath !== "dummy_logo") fs.unlink(actualLogoPath, () => {});
       });
 
     } catch (error: any) {
