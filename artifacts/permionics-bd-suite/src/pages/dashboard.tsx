@@ -15,20 +15,21 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
+import { motion } from "framer-motion";
 
 const CHART_COLORS = ["#1e40af", "#3b82f6", "#0ea5e9", "#06b6d4", "#6366f1", "#8b5cf6"];
 
 function getSectorColor(sector: string) {
   const s = sector.toLowerCase();
   if (s.includes("pharma") || s.includes("herbal"))
-    return "bg-purple-100 text-purple-700 border-purple-200";
+    return "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800";
   if (s.includes("textile"))
-    return "bg-teal-100 text-teal-700 border-teal-200";
+    return "bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-800";
   if (s.includes("cetp") || s.includes("municipal"))
-    return "bg-amber-100 text-amber-700 border-amber-200";
+    return "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800";
   if (s.includes("food") || s.includes("beverage"))
-    return "bg-green-100 text-green-700 border-green-200";
-  return "bg-blue-100 text-blue-700 border-blue-200";
+    return "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800";
+  return "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800";
 }
 
 function StatCard({
@@ -37,50 +38,56 @@ function StatCard({
   icon: Icon,
   accent,
   sublabel,
+  delay = 0,
 }: {
   label: string;
   value: string | number;
   icon: any;
   accent: string;
   sublabel?: string;
+  delay?: number;
 }) {
   return (
-    <div
-      className="relative rounded-2xl p-6 overflow-hidden"
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.4 }}
+      className="relative rounded-2xl p-6 overflow-hidden glass group cursor-default transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
       style={{
-        background: "hsl(var(--card))",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.02)",
-        border: "1px solid hsl(var(--border))",
+        boxShadow: "var(--shadow-sm)",
       }}
     >
+      {/* Shimmer effect on hover */}
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-shimmer z-0" />
+
       {/* Accent bar */}
       <div
-        className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl"
+        className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl z-10"
         style={{ background: accent }}
       />
 
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between relative z-10">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest mb-3 text-muted-foreground">
+          <p className="text-xs font-bold uppercase tracking-wider mb-2 text-muted-foreground">
             {label}
           </p>
           <p className="text-3xl font-extrabold tracking-tight text-foreground">
             {value}
           </p>
           {sublabel && (
-            <p className="text-xs mt-1.5 text-muted-foreground">
+            <p className="text-xs mt-1.5 text-muted-foreground font-medium">
               {sublabel}
             </p>
           )}
         </div>
         <div
-          className="w-11 h-11 rounded-xl flex items-center justify-center"
-          style={{ background: `${accent}18` }}
+          className="w-12 h-12 rounded-xl flex items-center justify-center shadow-sm transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3"
+          style={{ background: `color-mix(in srgb, ${accent} 15%, transparent)` }}
         >
-          <Icon className="w-5 h-5" style={{ color: accent }} />
+          <Icon className="w-6 h-6" style={{ color: accent }} />
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -93,7 +100,7 @@ function ActionBtn({ href, icon: Icon, label, accent }: { href: string; icon: an
         style={{
           background: accent,
           color: "white",
-          boxShadow: `0 4px 14px ${accent}55`,
+          boxShadow: `0 4px 14px color-mix(in srgb, ${accent} 40%, transparent)`,
         }}
       >
         <Icon className="w-4 h-4" />
@@ -115,10 +122,10 @@ export default function DashboardPage() {
   if (isLoading) {
     return (
       <div className="p-8 space-y-6">
-        <div className="h-8 w-40 rounded-xl animate-pulse" style={{ background: "hsl(220 15% 90%)" }} />
+        <div className="h-8 w-40 rounded-xl animate-pulse glass" />
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-32 rounded-2xl animate-pulse" style={{ background: "hsl(220 15% 92%)" }} />
+            <div key={i} className="h-32 rounded-2xl animate-pulse glass" />
           ))}
         </div>
       </div>
@@ -129,12 +136,12 @@ export default function DashboardPage() {
     return (
       <div className="p-8">
         <div
-          className="rounded-2xl p-6 border"
-          style={{ background: "hsl(38 92% 97%)", borderColor: "hsl(38 92% 85%)" }}
+          className="rounded-2xl p-6 glass border-amber-200/30"
+          style={{ background: "hsl(var(--warning) / 0.1)" }}
         >
-          <p className="font-bold text-amber-800 mb-1">Database setup required</p>
-          <p className="text-sm text-amber-700">
-            Run the <code className="bg-amber-100 px-1 rounded">supabase-migration.sql</code> in your Supabase SQL editor to create the required tables.
+          <p className="font-bold text-amber-500 mb-1">Database setup required</p>
+          <p className="text-sm text-amber-500/80">
+            Run the <code className="bg-amber-500/20 px-1 rounded">supabase-migration.sql</code> in your Supabase SQL editor to create the required tables.
           </p>
         </div>
       </div>
@@ -171,33 +178,32 @@ export default function DashboardPage() {
     : "N/A";
 
   return (
-    <div className="min-h-full text-foreground" style={{ background: "hsl(var(--background))" }}>
+    <div className="min-h-full text-foreground pb-12">
       {/* ── Top header bar ── */}
       <div
-        className="sticky top-0 z-20 flex items-center justify-between px-8 h-16 print-hide"
+        className="sticky top-0 z-20 flex items-center justify-between px-8 h-20 print-hide glass"
         style={{
-          background: "hsl(var(--card))",
-          borderBottom: "1px solid hsl(var(--border))",
-          boxShadow: "0 1px 0 hsl(var(--border))",
+          borderBottom: "1px solid var(--glass-border)",
+          borderRadius: 0,
         }}
       >
-        <div>
-          <h1 className="text-lg font-extrabold tracking-tight" style={{ color: "var(--foreground)" }}>
+        <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>
+          <h1 className="text-xl font-extrabold tracking-tight" style={{ color: "var(--foreground)" }}>
             Overview
           </h1>
-          <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+          <p className="text-sm font-medium mt-0.5" style={{ color: "var(--muted-foreground)" }}>
             Permionics Intelligence Dashboard
           </p>
-        </div>
+        </motion.div>
         {/* Quick actions */}
-        <div className="flex items-center gap-2">
+        <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-3">
           {canManage && <ActionBtn href="~/generator" icon={Plus} label="New Case Study" accent="hsl(var(--primary))" />}
           <ActionBtn href="~/questionnaire" icon={FileText} label="Questionnaire" accent="hsl(var(--secondary))" />
-        </div>
+        </motion.div>
       </div>
 
       {/* ── Page body ── */}
-      <div className="p-8 space-y-8">
+      <div className="p-8 space-y-8 max-w-7xl mx-auto">
         {/* ── Stat cards ── */}
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
@@ -206,6 +212,7 @@ export default function DashboardPage() {
             icon={Briefcase}
             accent="hsl(var(--primary))"
             sublabel="In Case Library"
+            delay={0.1}
           />
           <StatCard
             label="Questionnaires"
@@ -213,69 +220,79 @@ export default function DashboardPage() {
             icon={ClipboardList}
             accent="hsl(var(--secondary))"
             sublabel="Generated"
+            delay={0.2}
           />
           <StatCard
             label="Sectors Covered"
             value={stats.sectorsCount}
             icon={MapPin}
-            accent="hsl(175 70% 38%)"
+            accent="hsl(var(--warning))"
             sublabel="Industry verticals"
+            delay={0.3}
           />
           <StatCard
             label="Last Updated"
             value={lastUpdatedStr}
             icon={Clock}
-            accent="hsl(280 65% 55%)"
+            accent="hsl(var(--success))"
             sublabel="Most recent entry"
+            delay={0.4}
           />
         </div>
 
         {/* ── Main content grid ── */}
         <div className="grid gap-6 lg:grid-cols-7">
           {/* Recent Activity */}
-          <div
-            className="lg:col-span-4 rounded-2xl overflow-hidden"
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="lg:col-span-4 rounded-2xl overflow-hidden glass"
             style={{
-              background: "hsl(var(--card))",
-              border: "1px solid hsl(var(--border))",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.02)",
+              boxShadow: "var(--shadow-lg)",
             }}
           >
             {/* Card header */}
             <div
-              className="flex items-center justify-between px-6 py-4"
-              style={{ borderBottom: "1px solid hsl(var(--border))" }}
+              className="flex items-center justify-between px-7 py-5"
+              style={{ borderBottom: "1px solid var(--glass-border)" }}
             >
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-3">
                 <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center"
-                  style={{ background: "hsl(var(--primary) / 0.1)" }}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center shadow-sm"
+                  style={{ background: "hsl(var(--primary) / 0.15)" }}
                 >
-                  <Activity className="w-4 h-4" style={{ color: "hsl(var(--primary))" }} />
+                  <Activity className="w-5 h-5" style={{ color: "hsl(var(--primary))" }} />
                 </div>
                 <div>
-                  <p className="text-sm font-bold" style={{ color: "var(--foreground)" }}>Recent Activity</p>
-                  <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>Latest library additions</p>
+                  <p className="text-base font-bold" style={{ color: "var(--foreground)" }}>Recent Activity</p>
+                  <p className="text-xs font-medium mt-0.5" style={{ color: "var(--muted-foreground)" }}>Latest library additions</p>
                 </div>
               </div>
               <Link href="~/library">
-                <button className="flex items-center gap-1 text-xs font-semibold transition-colors hover:opacity-70 border-0 bg-transparent cursor-pointer" style={{ color: "hsl(var(--secondary))" }}>
-                  View all <ChevronRight className="w-3.5 h-3.5" />
+                <button className="flex items-center gap-1 text-sm font-semibold transition-colors hover:opacity-70 border-0 bg-transparent cursor-pointer group" style={{ color: "hsl(var(--secondary))" }}>
+                  View all <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </button>
               </Link>
             </div>
 
             {/* Activity list */}
-            <div className="divide-y font-normal" style={{ borderColor: "hsl(var(--border))" }}>
+            <div className="divide-y font-normal" style={{ borderColor: "var(--glass-border)" }}>
               {stats.recentActivity.length > 0 ? (
                 stats.recentActivity.map((activity, index) => (
-                  <div key={index} className="flex items-center gap-4 px-6 py-4 hover:bg-muted/30 transition-colors">
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 * index }}
+                    key={index}
+                    className="flex items-center gap-4 px-7 py-5 hover:bg-white/5 dark:hover:bg-white/5 transition-colors group cursor-default"
+                  >
                     <div
-                      className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                      className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm transition-transform duration-300 group-hover:scale-110"
                       style={{
                         background: activity.type === "case_study"
-                          ? "hsl(var(--primary) / 0.1)"
-                          : "hsl(var(--secondary) / 0.1)",
+                          ? "hsl(var(--primary) / 0.15)"
+                          : "hsl(var(--secondary) / 0.15)",
                       }}
                     >
                       {activity.type === "case_study" ? (
@@ -288,124 +305,127 @@ export default function DashboardPage() {
                       <p className="text-sm font-semibold truncate" style={{ color: "var(--foreground)" }}>
                         {activity.title}
                       </p>
-                      <div className="flex items-center gap-2 mt-0.5">
+                      <div className="flex items-center gap-2.5 mt-1.5">
                         <Badge
                           variant="outline"
-                          className={`text-[10px] px-2 py-0 h-4 rounded-full font-medium border ${getSectorColor(activity.sector)}`}
+                          className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${getSectorColor(activity.sector)}`}
                         >
                           {activity.sector}
                         </Badge>
-                        <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                        <span className="text-xs font-medium" style={{ color: "var(--muted-foreground)" }}>
                           {activity.type === "case_study" ? "Case Study" : "Questionnaire"}
                         </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                    <div className="flex items-center gap-2 flex-shrink-0 opacity-70 group-hover:opacity-100 transition-opacity">
+                      <span className="text-xs font-medium" style={{ color: "var(--muted-foreground)" }}>
                         {format(new Date(activity.createdAt), "MMM d")}
                       </span>
-                      <ArrowUpRight className="w-3.5 h-3.5" style={{ color: "var(--muted-foreground)" }} />
+                      <ArrowUpRight className="w-4 h-4" style={{ color: "var(--muted-foreground)" }} />
                     </div>
-                  </div>
+                  </motion.div>
                 ))
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <Activity className="w-8 h-8 mb-3" style={{ color: "var(--muted-foreground)" }} />
-                  <p className="text-sm font-medium" style={{ color: "var(--muted-foreground)" }}>No recent activity</p>
-                  <p className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>Add case studies to see them here</p>
+                  <Activity className="w-10 h-10 mb-4 opacity-20" style={{ color: "var(--foreground)" }} />
+                  <p className="text-sm font-bold" style={{ color: "var(--foreground)" }}>No recent activity</p>
+                  <p className="text-xs mt-1 font-medium" style={{ color: "var(--muted-foreground)" }}>Add case studies to see them here</p>
                 </div>
               )}
             </div>
-          </div>
+          </motion.div>
 
           {/* Sector Distribution */}
-          <div
-            className="lg:col-span-3 rounded-2xl overflow-hidden"
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="lg:col-span-3 rounded-2xl overflow-hidden glass flex flex-col"
             style={{
-              background: "hsl(var(--card))",
-              border: "1px solid hsl(var(--border))",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.02)",
+              boxShadow: "var(--shadow-lg)",
             }}
           >
             <div
-              className="flex items-center gap-2.5 px-6 py-4"
-              style={{ borderBottom: "1px solid hsl(var(--border))" }}
+              className="flex items-center gap-3 px-7 py-5"
+              style={{ borderBottom: "1px solid var(--glass-border)" }}
             >
               <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center"
-                style={{ background: "hsl(var(--secondary) / 0.1)" }}
+                className="w-10 h-10 rounded-xl flex items-center justify-center shadow-sm"
+                style={{ background: "hsl(var(--secondary) / 0.15)" }}
               >
-                <TrendingUp className="w-4 h-4" style={{ color: "hsl(var(--secondary))" }} />
+                <TrendingUp className="w-5 h-5" style={{ color: "hsl(var(--secondary))" }} />
               </div>
               <div>
-                <p className="text-sm font-bold" style={{ color: "var(--foreground)" }}>Sector Breakdown</p>
-                <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>Industry distribution</p>
+                <p className="text-base font-bold" style={{ color: "var(--foreground)" }}>Sector Breakdown</p>
+                <p className="text-xs font-medium mt-0.5" style={{ color: "var(--muted-foreground)" }}>Industry distribution</p>
               </div>
             </div>
 
-            <div className="px-4 pb-4">
-              <div className="h-[200px]">
+            <div className="px-6 pb-6 flex-1 flex flex-col justify-center mt-2">
+              <div className="h-[220px] w-full relative">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                        data={sectorData}
                        cx="50%"
                        cy="50%"
-                       innerRadius={55}
-                       outerRadius={80}
-                       paddingAngle={3}
+                       innerRadius={65}
+                       outerRadius={95}
+                       paddingAngle={4}
                        dataKey="value"
                        strokeWidth={0}
+                       cornerRadius={4}
                     >
                       {sectorData.map((_, index) => (
-                        <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                         <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} className="drop-shadow-sm hover:opacity-80 transition-opacity cursor-pointer" />
                       ))}
                     </Pie>
                     <Tooltip
                       formatter={(value: number) => [`${value}%`, "Share"]}
                       contentStyle={{
                         borderRadius: 12,
-                        background: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
+                        background: "var(--glass-bg)",
+                        backdropFilter: "blur(12px)",
+                        border: "1px solid var(--glass-border)",
                         fontSize: 12,
                         fontFamily: "Plus Jakarta Sans, sans-serif",
-                        boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+                        boxShadow: "var(--shadow-lg)",
                         color: "var(--foreground)",
                       }}
+                      itemStyle={{ color: "var(--foreground)", fontWeight: 600 }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2.5 mt-2">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-3 mt-4">
                 {sectorData.map((item, i) => (
-                  <div key={item.name} className="flex items-center gap-2">
+                  <div key={item.name} className="flex items-center gap-2.5">
                     <div
-                      className="h-2 w-2 rounded-full flex-shrink-0"
+                      className="h-2.5 w-2.5 rounded-full flex-shrink-0 shadow-sm"
                       style={{ background: CHART_COLORS[i % CHART_COLORS.length] }}
                     />
-                    <span className="text-xs truncate" style={{ color: "var(--muted-foreground)" }}>
+                    <span className="text-xs font-medium truncate" style={{ color: "var(--muted-foreground)" }}>
                       {item.name}
                     </span>
-                    <span className="text-xs font-bold ml-auto" style={{ color: "var(--foreground)" }}>
+                    <span className="text-xs font-extrabold ml-auto" style={{ color: "var(--foreground)" }}>
                       {item.value}%
                     </span>
                   </div>
                 ))}
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
 
         {/* ── Quick links row ── */}
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-5 sm:grid-cols-3">
           {[
             {
               href: "~/library",
               icon: Briefcase,
               title: "Case Study Library",
               desc: "Browse all client case studies and outcomes",
-              accent: "#3b82f6",
-              accentBg: "rgba(59,130,246,0.08)",
+              accent: "hsl(var(--primary))",
             },
             ...(canManage
               ? [
@@ -414,8 +434,7 @@ export default function DashboardPage() {
                     icon: FileText,
                     title: "Case Study Generator",
                     desc: "Create structured case studies with AI assistance",
-                    accent: "#6366f1",
-                    accentBg: "rgba(99,102,241,0.08)",
+                    accent: "hsl(var(--secondary))",
                   },
                 ]
               : []),
@@ -423,36 +442,42 @@ export default function DashboardPage() {
               href: "~/assistant",
               icon: Activity,
               title: "Osmos AI",
-              desc: "Ask OSMOS for project intelligence from all your documents",
-              accent: "#10b981",
-              accentBg: "rgba(16,185,129,0.08)",
+              desc: "Ask OSMOS for project intelligence from documents",
+              accent: "hsl(var(--success))",
             },
-          ].map((item) => (
-            <Link key={item.href} href={item.href}>
-              <div
-                className="rounded-2xl p-5 cursor-pointer group transition-all hover:scale-[1.01] hover:shadow-lg dark:hover:shadow-xl"
-                style={{
-                  background: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                }}
-              >
+          ].map((item, index) => (
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 + (0.1 * index) }}
+              key={item.href}
+            >
+              <Link href={item.href}>
                 <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center mb-3"
-                  style={{ background: item.accentBg }}
+                  className="rounded-2xl p-6 cursor-pointer group transition-all duration-300 hover:scale-[1.02] glass hover:shadow-xl relative overflow-hidden h-full flex flex-col"
+                  style={{
+                    boxShadow: "var(--shadow-sm)",
+                  }}
                 >
-                  <item.icon className="w-5 h-5" style={{ color: item.accent }} />
+                  <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity translate-x-2 group-hover:translate-x-0 duration-300">
+                    <ArrowUpRight className="w-5 h-5" style={{ color: item.accent }} />
+                  </div>
+                  
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 shadow-sm transition-transform duration-300 group-hover:scale-110"
+                    style={{ background: `color-mix(in srgb, ${item.accent} 15%, transparent)` }}
+                  >
+                    <item.icon className="w-6 h-6" style={{ color: item.accent }} />
+                  </div>
+                  <p className="text-base font-bold mb-1.5 text-foreground group-hover:text-primary transition-colors">
+                    {item.title}
+                  </p>
+                  <p className="text-xs leading-relaxed font-medium text-muted-foreground flex-1">
+                    {item.desc}
+                  </p>
                 </div>
-                <p className="text-sm font-bold mb-1 text-foreground">
-                  {item.title}
-                </p>
-                <p className="text-xs leading-relaxed text-muted-foreground">
-                  {item.desc}
-                </p>
-                <div className="flex items-center gap-1 mt-3 text-xs font-semibold" style={{ color: item.accent }}>
-                  Open <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </div>
-            </Link>
+              </Link>
+            </motion.div>
           ))}
         </div>
       </div>
