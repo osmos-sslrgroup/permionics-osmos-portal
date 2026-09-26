@@ -17,6 +17,7 @@ import GeneratorPage from './pages/generator/index';
 import QuestionnairePage from './pages/questionnaire/index';
 import AssistantPage from './pages/assistant/index';
 import PacePage from './pages/pace/index';
+import PaceFormatterPage from './pages/pace-formatter/index';
 import SettingsPage from './pages/settings/index';
 import NotFound from '@/pages/not-found';
 
@@ -80,6 +81,14 @@ function Router() {
         <ProtectedRoute>
           <AppLayout>
             <PacePage />
+          </AppLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/pace-formatter">
+        <ProtectedRoute allowedRoles={["admin", "operator"]}>
+          <AppLayout>
+            <PaceFormatterPage />
           </AppLayout>
         </ProtectedRoute>
       </Route>

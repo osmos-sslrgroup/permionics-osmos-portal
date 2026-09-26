@@ -12,6 +12,7 @@ import {
   Monitor,
   Sun,
   Moon,
+  FileEdit,
 } from "lucide-react";
 import { useLogout, useGetMe } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
@@ -33,6 +34,7 @@ const navItems: NavItem[] = [
   { href: "/generator", label: "Generator", icon: FileText },
   { href: "/questionnaire", label: "Questionnaire", icon: ClipboardList },
   { href: "/pace", label: "PACE", icon: Monitor },
+  { href: "/pace-formatter", label: "PACE Formatter", icon: FileEdit },
   { href: "/assistant", label: "Osmos AI", icon: MessageSquare },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
