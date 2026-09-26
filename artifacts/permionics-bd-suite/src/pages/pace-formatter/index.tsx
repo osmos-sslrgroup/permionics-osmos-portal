@@ -1,12 +1,18 @@
-import React, { useState } from "react";
-import { FileEdit, UploadCloud, File, Image as ImageIcon } from "lucide-react";
+import React, { useState, useRef } from "react";
+import { FileEdit, UploadCloud, File, Image as ImageIcon, Download, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import * as docx from "docx-preview";
 
 export default function PaceFormatterPage() {
+  const { toast } = useToast();
   const [docxFile, setDocxFile] = useState<File | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processedBlob, setProcessedBlob] = useState<Blob | null>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
   
   const [formData, setFormData] = useState({
     projectName: "",
@@ -26,16 +32,91 @@ export default function PaceFormatterPage() {
     }
   };
 
+  const handleSubmit = async () => {
+    if (!docxFile) return;
+    
+    setIsProcessing(true);
+    setProcessedBlob(null);
+
+    const form = new FormData();
+    form.append("docx", docxFile);
+    if (logoFile) {
+      form.append("logo", logoFile);
+    }
+    
+    Object.entries(formData).forEach(([key, value]) => {
+      form.append(key, value);
+    });
+
+    try {
+      const response = await fetch("/api/documents/format-pace", {
+        method: "POST",
+        body: form,
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to process document");
+      }
+
+      const blob = await response.blob();
+      setProcessedBlob(blob);
+      
+      toast({
+        title: "Success",
+        description: "Document formatted successfully. See preview on the right.",
+      });
+
+      // Render Preview
+      if (previewRef.current) {
+        previewRef.current.innerHTML = "";
+        docx.renderAsync(blob, previewRef.current, previewRef.current, {
+           inWrapper: false,
+           ignoreWidth: false,
+           ignoreHeight: false,
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Error",
+        description: "An error occurred while formatting the document.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDownload = () => {
+    if (!processedBlob) return;
+    const url = URL.createObjectURL(processedBlob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `PACE_Formatted_${formData.projectName || "Export"}.docx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl animate-fade-in">
-      <div className="flex items-center gap-4 mb-8">
-        <div className="bg-primary/10 p-3 rounded-lg">
-          <FileEdit className="w-8 h-8 text-primary" />
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
+          <div className="bg-primary/10 p-3 rounded-lg">
+            <FileEdit className="w-8 h-8 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">PACE Document Formatter</h1>
+            <p className="text-muted-foreground mt-1">Upload a PACE projection DOCX and a Logo to generate a formatted output.</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">PACE Document Formatter</h1>
-          <p className="text-muted-foreground mt-1">Upload a PACE projection DOCX and a Logo to generate a formatted output.</p>
-        </div>
+        {processedBlob && (
+          <Button onClick={handleDownload} className="gap-2">
+            <Download className="w-4 h-4" />
+            Download DOCX
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-[calc(100vh-200px)]">
@@ -47,7 +128,7 @@ export default function PaceFormatterPage() {
             {/* File Uploads */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Raw DOCX File</Label>
+                <Label>Raw DOCX File *</Label>
                 <label className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-lg p-4 cursor-pointer hover:border-primary/50 transition-colors bg-muted/20">
                   <File className="w-6 h-6 text-muted-foreground mb-2" />
                   <span className="text-xs font-medium text-center truncate w-full px-2">
@@ -77,7 +158,7 @@ export default function PaceFormatterPage() {
 
             <div className="space-y-2">
               <Label htmlFor="date">Date</Label>
-              <Input id="date" name="date" type="date" value={formData.date} onChange={handleInputChange} />
+              <Input id="date" name="date" type="text" value={formData.date} onChange={handleInputChange} placeholder="e.g. 2025/9/8" />
             </div>
 
             <div className="space-y-2">
@@ -97,21 +178,32 @@ export default function PaceFormatterPage() {
           </div>
 
           <div className="pt-4 mt-auto border-t">
-            <Button className="w-full" disabled={!docxFile}>
-              Process Document
+            <Button className="w-full" disabled={!docxFile || isProcessing} onClick={handleSubmit}>
+              {isProcessing ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                "Process Document"
+              )}
             </Button>
           </div>
         </div>
 
-        {/* Right Column: Preview (To be implemented) */}
+        {/* Right Column: Preview */}
         <div className="bg-muted/30 rounded-xl border shadow-inner flex flex-col h-full overflow-hidden relative">
-          <div className="bg-card border-b px-4 py-3 flex items-center justify-between">
+          <div className="bg-card border-b px-4 py-3 flex items-center justify-between z-10">
             <h2 className="font-medium text-sm">Preview</h2>
           </div>
-          <div className="flex-1 flex items-center justify-center p-8 text-center">
-             <div className="max-w-xs text-muted-foreground">
-               <FileEdit className="w-12 h-12 mx-auto mb-4 opacity-20" />
-               <p className="text-sm">Upload a document and fill in the details to see a preview of the generated DOCX file.</p>
+          <div className="flex-1 overflow-auto bg-white/50 dark:bg-black/50 p-4">
+             <div ref={previewRef} className="min-h-full w-full docx-preview-wrapper bg-white shadow-sm border p-4 text-black">
+                {!processedBlob && (
+                  <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-50 mt-32">
+                    <FileEdit className="w-12 h-12 mb-4" />
+                    <p className="text-sm">Upload and process a document to see the preview.</p>
+                  </div>
+                )}
              </div>
           </div>
         </div>

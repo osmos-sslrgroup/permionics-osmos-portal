@@ -78,6 +78,7 @@
     "zod": "catalog:"
   },
   "dependencies": {
+    "docx-preview": "^0.4.1",
     "firebase": "^12.18.0"
   }
 }
