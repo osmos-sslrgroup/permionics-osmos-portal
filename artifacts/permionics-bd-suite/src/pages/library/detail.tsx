@@ -95,18 +95,7 @@ export default function CaseStudyDetail() {
     }
   }, [data, isEditingModalOpen]);
 
-  const isStaticStudy = (clientName: string) => {
-    const staticNames = [
-      "European Pharmaceutical Major (Gropello, Italy)",
-      "Jeedimetla Effluent Treatment Limited (JETL)",
-      "World's Largest Stevia Plant",
-      "Nandesari Industries Association (NIA)",
-      "Serratiopeptidase Production Facility"
-    ];
-    return staticNames.includes(clientName);
-  };
-
-  const isStatic = data ? isStaticStudy(data.clientName || "") : false;
+  const isStatic = false;
 
   const handleDownload = () => {
     if (isStatic) {
