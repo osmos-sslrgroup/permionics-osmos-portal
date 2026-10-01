@@ -143,8 +143,14 @@ export default function PaceFormatterPage() {
         @media print {
           body { padding: 0 !important; background-color: white !important; margin: 0 !important; zoom: 1 !important; }
           .docx-wrapper { padding: 0 !important; background: white !important; zoom: 1 !important; align-items: flex-start !important; }
-          .docx { box-shadow: none !important; border: none !important; margin: 0 !important; width: 100% !important; max-width: none !important; }
-          @page { size: A4 portrait; margin: 15mm; }
+          .docx { 
+            box-shadow: none !important; 
+            border: none !important; 
+            margin: 0 !important; 
+            page-break-after: always;
+            page-break-inside: avoid;
+          }
+          @page { size: A4 portrait; margin: 0; }
         }
       `;
       doc.head.appendChild(style);
