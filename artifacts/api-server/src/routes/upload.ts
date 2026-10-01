@@ -8,24 +8,25 @@ import { debugLog } from "../lib/modes";
 const router: IRouter = Router();
 const upload = multer({ dest: os.tmpdir() });
 
-const r2AccountId = process.env.R2_ACCOUNT_ID || "";
-const r2AccessKeyId = process.env.R2_ACCESS_KEY_ID || "";
-const r2SecretAccessKey = process.env.R2_SECRET_ACCESS_KEY || "";
-const r2BucketName = process.env.R2_BUCKET_NAME || "";
-const r2PublicUrl = process.env.R2_PUBLIC_URL || "";
+const s3Endpoint = process.env.S3_ENDPOINT || "";
+const s3AccessKeyId = process.env.S3_ACCESS_KEY_ID || "";
+const s3SecretAccessKey = process.env.S3_SECRET_ACCESS_KEY || "";
+const s3BucketName = process.env.S3_BUCKET_NAME || "";
+const s3PublicUrl = process.env.S3_PUBLIC_URL || "";
+const s3Region = process.env.S3_REGION || "auto";
 
 let s3Client: any = null;
 
 async function getS3Client() {
-  if (!s3Client && r2AccountId && r2AccessKeyId && r2SecretAccessKey) {
+  if (!s3Client && s3Endpoint && s3AccessKeyId && s3SecretAccessKey) {
     try {
       const { S3Client } = await import("@aws-sdk/client-s3");
       s3Client = new S3Client({
-        region: "auto",
-        endpoint: `https://${r2AccountId}.r2.cloudflarestorage.com`,
+        region: s3Region,
+        endpoint: s3Endpoint,
         credentials: {
-          accessKeyId: r2AccessKeyId,
-          secretAccessKey: r2SecretAccessKey,
+          accessKeyId: s3AccessKeyId,
+          secretAccessKey: s3SecretAccessKey,
         },
       });
     } catch (e) {
@@ -49,22 +50,22 @@ router.post("/upload", upload.single("file"), async (req, res): Promise<void> =>
     const fileBuffer = fs.readFileSync(tempPath);
     const client = await getS3Client();
 
-    if (client && r2BucketName) {
+    if (client && s3BucketName) {
       const { PutObjectCommand } = await import("@aws-sdk/client-s3");
       await client.send(
         new PutObjectCommand({
-          Bucket: r2BucketName,
+          Bucket: s3BucketName,
           Key: filename,
           Body: fileBuffer,
           ContentType: mimetype,
         })
       );
 
-      const cdnUrl = r2PublicUrl
-        ? `${r2PublicUrl.replace(/\/$/, "")}/${filename}`
-        : `https://${r2BucketName}.${r2AccountId}.r2.cloudflarestorage.com/${filename}`;
+      const cdnUrl = s3PublicUrl
+        ? `${s3PublicUrl.replace(/\/$/, "")}/${filename}`
+        : `${s3Endpoint.replace(/\/$/, "")}/${s3BucketName}/${filename}`;
 
-      debugLog("STORAGE", `Uploaded ${originalname} to Cloudflare R2 bucket ${r2BucketName}`, { cdnUrl });
+      debugLog("STORAGE", `Uploaded ${originalname} to S3 bucket ${s3BucketName}`, { cdnUrl });
       res.json({ success: true, url: cdnUrl, filename });
     } else {
       // Local Fallback Storage
@@ -76,7 +77,7 @@ router.post("/upload", upload.single("file"), async (req, res): Promise<void> =>
       fs.writeFileSync(localFilePath, fileBuffer);
       const localUrl = `/uploads/${filename}`;
 
-      debugLog("STORAGE", `R2 credentials missing. Saved ${originalname} to local storage`, { localUrl });
+      debugLog("STORAGE", `S3 credentials missing. Saved ${originalname} to local storage`, { localUrl });
       res.json({ success: true, url: localUrl, filename });
     }
   } catch (err: any) {
