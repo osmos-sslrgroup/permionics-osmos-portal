@@ -128,39 +128,32 @@ export default function PaceFormatterPage() {
     setTimeout(() => setDownloadSuccess(null), 2000);
   };
 
-  const handleDownloadPdf = async () => {
-    if (!docxFile) return;
-    setIsPdfProcessing(true);
-    try {
-      const form = new FormData();
-      form.append("docx", docxFile);
-      if (logoFile) form.append("logo", logoFile);
-      Object.entries(formData).forEach(([key, value]) => form.append(key, value));
-
-      const response = await fetch("/api/documents/format-pace?pdf=true", {
-        method: "POST",
-        body: form,
-      });
-
-      if (!response.ok) throw new Error("Failed to generate PDF");
-
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `PACE_Formatted_${formData.projectName || "Export"}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      setDownloadSuccess("pdf");
-      setTimeout(() => setDownloadSuccess(null), 2000);
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to generate PDF", variant: "destructive" });
-    } finally {
-      setIsPdfProcessing(false);
+  const handleDownloadPdf = () => {
+    if (!previewRef.current?.contentWindow) {
+      toast({ title: "Error", description: "Preview not ready for printing.", variant: "destructive" });
+      return;
     }
+    
+    // Inject a print-specific style to optimize the iframe output for PDF
+    const doc = previewRef.current.contentDocument;
+    if (doc && !doc.getElementById("print-style")) {
+      const style = doc.createElement("style");
+      style.id = "print-style";
+      style.textContent = `
+        @media print {
+          body { padding: 0 !important; background-color: white !important; zoom: 1 !important; }
+          .docx-wrapper { padding: 0 !important; background: white !important; }
+          @page { size: A4 portrait; margin: 20mm; }
+        }
+      `;
+      doc.head.appendChild(style);
+    }
+
+    // Trigger the browser's native print dialog
+    previewRef.current.contentWindow.print();
+    
+    setDownloadSuccess("pdf");
+    setTimeout(() => setDownloadSuccess(null), 2000);
   };
 
   return (
