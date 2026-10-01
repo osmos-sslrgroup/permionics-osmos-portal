@@ -141,9 +141,10 @@ export default function PaceFormatterPage() {
       style.id = "print-style";
       style.textContent = `
         @media print {
-          body { padding: 0 !important; background-color: white !important; zoom: 1 !important; }
-          .docx-wrapper { padding: 0 !important; background: white !important; }
-          @page { size: A4 portrait; margin: 20mm; }
+          body { padding: 0 !important; background-color: white !important; margin: 0 !important; zoom: 1 !important; }
+          .docx-wrapper { padding: 0 !important; background: white !important; zoom: 1 !important; align-items: flex-start !important; }
+          .docx { box-shadow: none !important; border: none !important; margin: 0 !important; width: 100% !important; max-width: none !important; }
+          @page { size: A4 portrait; margin: 15mm; }
         }
       `;
       doc.head.appendChild(style);
