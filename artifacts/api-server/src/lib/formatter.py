@@ -22,55 +22,60 @@ def main():
         print(f"Error reading docx: {e}")
         sys.exit(1)
 
-    # Dictionary of replacements
+    # Dictionary of replacements for standard labels
     replacements = {
         "Project Name:": proj_name,
         "Date:": date_val,
         "Company:": company,
         "Designed By:": designed_by,
-        "Element Model": element_model,
-        "Elements Model": element_model
     }
 
-    # 1. Replace text in tables
+    old_models = set()
+
+    # 1. First Pass: Replace standard labels and extract old element models
     for table in doc.tables:
         for row in table.rows:
             for i, cell in enumerate(row.cells):
                 text = cell.text.strip()
-                # Remove "Change Your Design"
+                
+                # Remove "Change Your Design" watermark
                 if "Change Your Design" in text:
                     cell.text = text.replace("Change Your Design", "")
                 
-                # Check for our labels
+                # Check for Element Model row to extract all old models across all columns
+                if text in ["Element Model", "Elements Model"]:
+                    # Iterate through all remaining cells in this row
+                    for j in range(i + 1, len(row.cells)):
+                        old_model_text = row.cells[j].text.strip()
+                        if old_model_text and old_model_text not in ["", "N/A", "None"]:
+                            old_models.add(old_model_text)
+                            if element_model:
+                                row.cells[j].text = element_model
+                
+                # Check for standard label replacements (where the value is in the next cell)
                 for label, new_value in replacements.items():
                     if label in text:
-                        # Sometimes the value is in the same cell: "Project Name: Old Value"
-                        # Sometimes it's in the next cell. 
-                        # Let's check if the label is the entire cell or if it has the value appended
-                        if len(text) > len(label) + 2:
-                            # The value is probably in the same cell
-                            # E.g., cell.text = "Project Name: OldProject"
-                            # We can replace the whole cell text with the label + new value
-                            # But wait, python-docx loses formatting if we do cell.text = ...
-                            # Let's just do a naive replace for now
-                            pass # We'll handle this in the paragraph loop
-                        else:
-                            # The value is in the next cell
-                            if i + 1 < len(row.cells):
-                                # Replace the next cell's text
-                                if new_value: # Only replace if provided
-                                    row.cells[i+1].text = new_value
+                        if len(text) <= len(label) + 2:
+                            if i + 1 < len(row.cells) and new_value:
+                                row.cells[i+1].text = new_value
 
-    # 2. Replace text in paragraphs (for "Change Your Design" and same-cell labels)
+    # 2. Second Pass: Globally replace the old element models in all other tables (e.g. Table 3)
+    if element_model and old_models:
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    # Exact match replacement
+                    if cell.text.strip() in old_models:
+                        cell.text = element_model
+
+    # 3. Handle paragraph-level text ("Change Your Design" and inline labels)
     for p in doc.paragraphs:
         if "Change Your Design" in p.text:
             p.text = p.text.replace("Change Your Design", "")
             
         for label, new_value in replacements.items():
             if label in p.text and new_value:
-                # If label is in the paragraph, and it's not a table split (meaning it's like "Project Name: OldVal")
-                # We can replace the text after the label
-                # This is a bit tricky, let's just replace the whole paragraph text if it starts with the label
+                # E.g. "Project Name: OldVal" -> "Project Name: NewVal"
                 if p.text.strip().startswith(label):
                     p.text = f"{label} {new_value}"
 
