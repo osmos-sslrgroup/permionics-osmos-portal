@@ -68,7 +68,7 @@ app.listen(port, async (err?: any) => {
   logger.info({ port }, "Server listening");
 
   // Keep Render backend awake by self-pinging every 10 minutes
-  const PUBLIC_URL = "https://permionics-insights-hub.onrender.com/api/healthz";
+  const PUBLIC_URL = "https://permionics-osmos-portal.onrender.com/api/healthz";
   setInterval(() => {
     fetch(PUBLIC_URL)
       .then((res) => {

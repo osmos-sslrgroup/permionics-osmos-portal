@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import osmosLogo from "@assets/osmos_logo_blue_transparent.png";
 import permionicsLogo from "@assets/permionics_logo_blue.png";
 
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
 export default function LoginPage() {
@@ -117,8 +117,49 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleOAuth = () => {
-    toast({ title: "Google OAuth Sign-In", description: "Google Sign-In requires your Firebase API key in .env (FIREBASE_API_KEY)." });
+  const handleGoogleOAuth = async () => {
+    if (!auth) {
+      toast({
+        title: "Firebase Auth Error",
+        description: "Firebase is not configured. Please ensure VITE_FIREBASE_* variables are set.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      const userCredential = await signInWithPopup(auth, provider);
+      const idToken = await userCredential.user.getIdToken(true);
+
+      const res = (await customFetch("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ idToken, remember: true }),
+      })) as any;
+
+      if (res.authenticated) {
+        localStorage.setItem("theme", "light");
+        document.documentElement.classList.remove("dark");
+        await queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+        
+        if (res.needsReset) {
+          setLocation("/reset-password");
+        } else {
+          setLocation("/");
+        }
+      } else {
+        toast({ title: "Access Denied", description: res.error || "Login failed.", variant: "destructive" });
+      }
+    } catch (err: any) {
+      if (err.code !== "auth/popup-closed-by-user") {
+        console.error("Google Sign-In error:", err);
+        toast({ title: "Google Sign-In Failed", description: err.message || "Failed to sign in with Google.", variant: "destructive" });
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Stagger animation variants
