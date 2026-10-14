@@ -7,6 +7,12 @@ import { CaseStudyPreview } from "./creator_components/CaseStudyPreview";
 import { printCaseStudy } from "./creator_utils/print";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 
 interface Props {
   projectId: number;
@@ -202,68 +208,61 @@ export default function EditorPage({ projectId }: Props) {
               <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: saveColor, boxShadow: `0 0 10px ${saveColor}` }} className={saveStatus === "saving" ? "animate-ping" : ""} />
               {saveLabel}
             </span>
-            <div className="relative group">
-              <button
-                className="hover:scale-105 active:scale-95 transition-all"
-                style={{
-                  background: pal.primary, color: "white", border: "none", borderRadius: "10px",
-                  padding: "10px 20px", fontSize: "13px", cursor: "pointer",
-                  display: "flex", alignItems: "center", gap: "8px", fontWeight: 700,
-                  boxShadow: `0 4px 14px ${pal.primary}60`,
-                }}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                Export / Print ▾
-              </button>
-              <div className="absolute right-0 mt-2 w-52 bg-card border border-border/50 rounded-xl shadow-xl hidden group-hover:block z-50 p-1.5 backdrop-blur-md bg-white/90 dark:bg-black/90">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
                 <button
+                  className="hover:opacity-90 active:scale-95 transition-all outline-none"
+                  style={{
+                    background: pal.primary, color: "white", border: "none", borderRadius: "10px",
+                    padding: "10px 20px", fontSize: "13px", cursor: "pointer",
+                    display: "flex", alignItems: "center", gap: "8px", fontWeight: 700,
+                    boxShadow: `0 4px 14px ${pal.primary}60`,
+                  }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  Export ▾
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52 p-1.5 backdrop-blur-md bg-white/95 dark:bg-black/95 border border-border/50 shadow-xl rounded-xl z-50">
+                <DropdownMenuItem
                   onClick={() => printCaseStudy()}
-                  className="w-full text-left px-3 py-2.5 text-xs text-foreground hover:bg-muted rounded-lg flex items-center gap-2 font-bold"
+                  className="w-full text-left px-3 py-2.5 text-xs text-foreground hover:bg-muted cursor-pointer rounded-lg flex items-center gap-2 font-bold"
                 >
                   📄 Multi-Page A4 PDF
-                </button>
-                <button
+                </DropdownMenuItem>
+                <DropdownMenuItem
                   onClick={async () => {
                     const { exportToDocx } = await import("./creator_utils/exportUtils");
                     exportToDocx();
                   }}
-                  className="w-full text-left px-3 py-2.5 text-xs text-foreground hover:bg-muted rounded-lg flex items-center gap-2 font-bold"
+                  className="w-full text-left px-3 py-2.5 text-xs text-foreground hover:bg-muted cursor-pointer rounded-lg flex items-center gap-2 font-bold"
                 >
                   📝 Word Document (.docx)
-                </button>
-                <button
+                </DropdownMenuItem>
+                <DropdownMenuItem
                   onClick={async () => {
                     const { exportToImage } = await import("./creator_utils/exportUtils");
                     exportToImage("png");
                   }}
-                  className="w-full text-left px-3 py-2.5 text-xs text-foreground hover:bg-muted rounded-lg flex items-center gap-2 font-bold"
+                  className="w-full text-left px-3 py-2.5 text-xs text-foreground hover:bg-muted cursor-pointer rounded-lg flex items-center gap-2 font-bold"
                 >
                   🖼️ PNG Image
-                </button>
-                <button
+                </DropdownMenuItem>
+                <DropdownMenuItem
                   onClick={async () => {
                     const { exportToImage } = await import("./creator_utils/exportUtils");
                     exportToImage("jpeg");
                   }}
-                  className="w-full text-left px-3 py-2.5 text-xs text-foreground hover:bg-muted rounded-lg flex items-center gap-2 font-bold"
+                  className="w-full text-left px-3 py-2.5 text-xs text-foreground hover:bg-muted cursor-pointer rounded-lg flex items-center gap-2 font-bold"
                 >
                   🖼️ JPEG Image
-                </button>
-                <button
-                  onClick={async () => {
-                    const { triggerNativePrint } = await import("./creator_utils/exportUtils");
-                    triggerNativePrint();
-                  }}
-                  className="w-full text-left px-3 py-2.5 text-xs text-foreground hover:bg-muted rounded-lg flex items-center gap-2 font-bold border-t border-border/50 mt-1 pt-2"
-                >
-                  🖨️ Direct Print
-                </button>
-              </div>
-            </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 

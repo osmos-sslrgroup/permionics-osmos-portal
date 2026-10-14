@@ -55,6 +55,7 @@ export default function PaceFormatterPage() {
       const response = await fetch("/api/documents/format-pace", {
         method: "POST",
         body: form,
+        credentials: "include",
       });
 
       if (!response.ok) {

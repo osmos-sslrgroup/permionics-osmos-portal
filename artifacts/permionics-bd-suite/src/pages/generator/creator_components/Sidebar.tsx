@@ -104,6 +104,7 @@ export function Sidebar({ data, palette, onPaletteChange, onChange, onPrint, onB
       const res = await fetch("/api/upload", {
         method: "POST",
         body: formData,
+        credentials: "include",
       });
 
       if (res.ok) {
