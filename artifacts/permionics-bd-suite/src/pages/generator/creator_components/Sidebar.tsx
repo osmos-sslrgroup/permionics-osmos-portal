@@ -9,6 +9,7 @@ interface Props {
   onChange: (data: CaseStudyData) => void;
   onPrint: () => void;
   onBack: () => void;
+  backLabel?: string;
   saved: boolean;
   onSaveNow: () => void;
   editableMode: boolean;
@@ -38,7 +39,7 @@ const POS_OPTS = [
   { value: "bottom right", label: "Bottom-right" },
 ];
 
-export function Sidebar({ data, palette, onPaletteChange, onChange, onPrint, onBack, saved, onSaveNow, editableMode, onToggleEditable, projectName, onPublishToLibrary, isPublishing }: Props) {
+export function Sidebar({ data, palette, onPaletteChange, onChange, onPrint, onBack, backLabel, saved, onSaveNow, editableMode, onToggleEditable, projectName, onPublishToLibrary, isPublishing }: Props) {
   const [tab, setTab] = useState<Tab>("client");
   const plantRef = useRef<HTMLInputElement>(null);
   const handshakeRef = useRef<HTMLInputElement>(null);
@@ -240,7 +241,7 @@ export function Sidebar({ data, palette, onPaletteChange, onChange, onPrint, onB
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="15 18 9 12 15 6" />
           </svg>
-          All Projects
+          {backLabel || "All Projects"}
         </button>
         <div className="text-[9px] tracking-widest uppercase mb-1" style={{ color: "#7ec8e3" }}>Permionics</div>
         <div className="text-sm font-medium text-white truncate" style={{ maxWidth: "260px" }}>{projectName || "Case Study Generator"}</div>

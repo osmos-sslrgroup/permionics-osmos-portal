@@ -2,10 +2,10 @@ import { useParams, Link, useLocation } from "wouter";
 import { useGetCaseStudy, getGetCaseStudyQueryKey, useDeleteCaseStudy, useUpdateCaseStudy, useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { CaseStudyPreview } from "../generator/creator_components/CaseStudyPreview";
-import { getPalette, DEFAULT_PHOTO_CFG } from "../generator/creator_types";
+import { getPalette, mapLibraryCaseStudyToData } from "../generator/creator_types";
 import { printCaseStudy } from "../generator/creator_utils/print";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Edit, Download, Loader2, Trash2, FileText, Settings, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Edit, Download, Loader2, Trash2, FileText, Settings, AlertTriangle, Sliders } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
@@ -168,60 +168,7 @@ export default function CaseStudyDetail() {
     );
   }
 
-  const mappedData = {
-    clientName: data.clientName || "",
-    sector: data.sector || "",
-    location: data.location || "",
-    csTitle: data.clientName || "Case Study",
-    titleHL: "",
-    categoryLabel: data.sector || "CASE HISTORY",
-    application: data.technologyStack || "",
-    capacity: data.capacity || "",
-    tagLine: "",
-    intro: data.fullText ? data.fullText.split("\n\n")[0] || "" : "",
-    challengeProblem: data.challenge || "",
-    challengeLimits: "",
-    solDesign: data.solution || "",
-    solAuto: "",
-    solBOO: "",
-    techList: data.technologyStack || "",
-    techLabel: "Technologies Used",
-    deliveryLabel: "Delivery Model",
-    delivery: "Engineered, supplied, and commissioned by Permionics.",
-    operationsLabel: "Operations",
-    operations: "Continuous operation with zero unplanned downtime.",
-    waterData: "",
-    perfStab: "",
-    valueDel: "",
-    sidebarBullets: "",
-    statBar: "",
-    plantImg: (data as any).richData?.plantImg || null,
-    plantCap: (data as any).richData?.plantCap || "",
-    plantImgCfg: (data as any).richData?.plantImgCfg || DEFAULT_PHOTO_CFG,
-    handshakeImg: (data as any).richData?.handshakeImg || null,
-    handshakeCap: data.testimonial || (data as any).richData?.handshakeCap || "",
-    handshakeImgCfg: (data as any).richData?.handshakeImgCfg || DEFAULT_PHOTO_CFG,
-    envImpact: "Purified water returned to member industries for process reuse, supporting zero discharge compliance.",
-    companyName: "Permionics Membranes Pvt. Ltd.",
-    website: "www.permionics.com",
-    division: "Water & Wastewater Division",
-    regions: "India · Asia-Pacific · Global",
-    cards: data.results ? data.results.split(" | ").map((cardStr) => {
-      const idx = cardStr.indexOf(":");
-      if (idx !== -1) {
-        return { number: cardStr.slice(0, idx).trim(), label: cardStr.slice(idx + 1).trim() };
-      }
-      return { number: "", label: cardStr.trim() };
-    }) : [],
-    beakersImg: (data as any).richData?.beakersImg || null,
-    beakersCap: (data as any).richData?.beakersCap || "",
-    beakersImgCfg: (data as any).richData?.beakersImgCfg || DEFAULT_PHOTO_CFG,
-    fig1text: "",
-    conclusions: data.fullText ? data.fullText.split("\n\n").slice(-1)[0] || "" : "",
-    showTech: true,
-    showDelivery: true,
-    showOperations: true,
-  };
+  const { data: mappedData, palette: caseStudyPalette } = mapLibraryCaseStudyToData(data);
 
   return (
     <div className="relative min-h-full pb-20 bg-background/50 animate-fade-in print-full print:bg-white print:p-0">
@@ -302,9 +249,14 @@ export default function CaseStudyDetail() {
                       <Edit className="w-4 h-4 mr-2" /> Cannot Edit Static
                     </DropdownMenuItem>
                   ) : (
-                    <DropdownMenuItem onClick={() => setIsEditingModalOpen(true)} className="cursor-pointer font-medium py-2.5 rounded-xl hover:bg-white/5">
-                      <Edit className="w-4 h-4 mr-2" /> Edit Details
-                    </DropdownMenuItem>
+                    <>
+                      <DropdownMenuItem onClick={() => setLocation(`/generator/library/${data.id}`)} className="cursor-pointer font-bold py-2.5 rounded-xl hover:bg-white/5 text-primary">
+                        <Edit className="w-4 h-4 mr-2" /> Edit in Generator
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setIsEditingModalOpen(true)} className="cursor-pointer font-medium py-2 rounded-xl hover:bg-white/5 text-xs text-muted-foreground">
+                        <Sliders className="w-4 h-4 mr-2" /> Quick Edit Meta
+                      </DropdownMenuItem>
+                    </>
                   )}
                   <DropdownMenuSeparator className="bg-border/30 my-1" />
                   
@@ -395,7 +347,7 @@ export default function CaseStudyDetail() {
                 boxShadow: "var(--shadow-xl)", 
               }}
             >
-              <CaseStudyPreview data={mappedData} palette={getPalette("ocean-blue")} />
+              <CaseStudyPreview data={mappedData} palette={getPalette(caseStudyPalette)} />
             </div>
           </div>
         )}

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
 import { customFetch } from "@workspace/api-client-react";
-import { CaseStudyData, getPalette, migrateCaseStudyData } from "./creator_types";
+import { CaseStudyData, getPalette, migrateCaseStudyData, mapLibraryCaseStudyToData } from "./creator_types";
 import { Sidebar } from "./creator_components/Sidebar";
 import { CaseStudyPreview } from "./creator_components/CaseStudyPreview";
 import { printCaseStudy } from "./creator_utils/print";
@@ -16,9 +16,10 @@ import {
 
 interface Props {
   projectId: number;
+  mode?: "creator" | "library";
 }
 
-export default function EditorPage({ projectId }: Props) {
+export default function EditorPage({ projectId, mode = "creator" }: Props) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -34,33 +35,70 @@ export default function EditorPage({ projectId }: Props) {
   const latestDataRef = useRef<{ data: CaseStudyData; palette: string } | null>(null);
 
   useEffect(() => {
-    customFetch(`/api/case-creator/${projectId}`)
-      .then((res: any) => {
-        setProject(res);
-        const migrated = migrateCaseStudyData(res.data);
-        setData(migrated);
-        setPalette(res.palette ?? "ocean-blue");
-        setIsLoading(false);
-      })
-      .catch((err) => {
-        console.error(err);
-        setIsLoading(false);
-      });
-  }, [projectId]);
+    if (mode === "library") {
+      customFetch(`/api/case-studies/${projectId}`)
+        .then((cs: any) => {
+          setProject(cs);
+          const { data: mappedData, palette: loadedPalette } = mapLibraryCaseStudyToData(cs);
+          setData(mappedData);
+          setPalette(loadedPalette);
+          setIsLoading(false);
+        })
+        .catch((err) => {
+          console.error(err);
+          setIsLoading(false);
+        });
+    } else {
+      customFetch(`/api/case-creator/${projectId}`)
+        .then((res: any) => {
+          setProject(res);
+          const migrated = migrateCaseStudyData(res.data);
+          setData(migrated);
+          setPalette(res.palette ?? "ocean-blue");
+          setIsLoading(false);
+        })
+        .catch((err) => {
+          console.error(err);
+          setIsLoading(false);
+        });
+    }
+  }, [projectId, mode]);
 
   const doSave = useCallback(async (saveData: CaseStudyData, savePalette: string) => {
     setSaveStatus("saving");
     try {
-      await customFetch(`/api/case-creator/${projectId}`, {
-        method: "PUT",
-        body: JSON.stringify({ data: saveData, palette: savePalette }),
-      });
+      if (mode === "library") {
+        const payload = {
+          clientName: saveData.clientName || project?.clientName || "Unnamed Client",
+          sector: saveData.sector || "General",
+          location: saveData.location || "",
+          challenge: saveData.challengeProblem || "",
+          solution: saveData.solDesign || "",
+          technologyStack: saveData.techList ? saveData.techList.split("\n").join(", ") : "",
+          capacity: saveData.capacity || "",
+          results: saveData.cards ? saveData.cards.map(c => `${c.number}: ${c.label}`).join(" | ") : "",
+          testimonial: saveData.handshakeCap || null,
+          richData: { ...saveData, palette: savePalette, projectName: project?.clientName },
+          fullText: `${saveData.intro || ""}\n\n${saveData.challengeProblem || ""}\n\n${saveData.solDesign || ""}\n\n${saveData.conclusions || ""}`.trim(),
+        };
+        await customFetch(`/api/case-studies/${projectId}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+        queryClient.invalidateQueries({ queryKey: ["/api/case-studies"] });
+        queryClient.invalidateQueries({ queryKey: [`/api/case-studies/${projectId}`] });
+      } else {
+        await customFetch(`/api/case-creator/${projectId}`, {
+          method: "PUT",
+          body: JSON.stringify({ data: saveData, palette: savePalette }),
+        });
+      }
       setSaveStatus("saved");
     } catch (err) {
       console.error("Save failed:", err);
       setSaveStatus("unsaved");
     }
-  }, [projectId]);
+  }, [projectId, mode, project, queryClient]);
 
   const scheduleAutosave = useCallback((newData: CaseStudyData, newPalette: string) => {
     setSaveStatus("unsaved");
@@ -161,13 +199,20 @@ export default function EditorPage({ projectId }: Props) {
             onPaletteChange={handlePaletteChange}
             onChange={handleDataChange}
             onPrint={() => printCaseStudy()}
-            onBack={() => navigate("~/generator")}
+            onBack={() => {
+              if (mode === "library") {
+                navigate(`/library/${projectId}`);
+              } else {
+                navigate("~/generator");
+              }
+            }}
+            backLabel={mode === "library" ? "Back to Case Study" : "All Projects"}
             saved={saveStatus === "saved"}
             onSaveNow={handleSaveNow}
             editableMode={editableMode}
             onToggleEditable={() => setEditableMode((v) => !v)}
-            projectName={project?.name ?? ""}
-            onPublishToLibrary={handlePublishToLibrary}
+            projectName={project?.clientName || project?.name || ""}
+            onPublishToLibrary={mode === "library" ? undefined : handlePublishToLibrary}
             isPublishing={isPublishing}
           />
         )}

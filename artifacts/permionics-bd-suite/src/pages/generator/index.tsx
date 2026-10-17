@@ -4,9 +4,14 @@ import EditorPage from "./EditorPage";
 
 export default function GeneratorApp() {
   const [isEditorMatch, editorParams] = useRoute("/editor/:id");
+  const [isLibraryMatch, libraryParams] = useRoute("/library/:id");
 
   if (isEditorMatch && editorParams) {
-    return <EditorPage projectId={Number(editorParams.id)} />;
+    return <EditorPage projectId={Number(editorParams.id)} mode="creator" />;
+  }
+
+  if (isLibraryMatch && libraryParams) {
+    return <EditorPage projectId={Number(libraryParams.id)} mode="library" />;
   }
 
   return (

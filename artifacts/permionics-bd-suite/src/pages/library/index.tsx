@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, FileText, Loader2, MoreVertical, Download, Trash2, Upload, CloudUpload, Activity } from "lucide-react";
+import { Search, Plus, FileText, Loader2, MoreVertical, Download, Trash2, Upload, CloudUpload, Activity, Edit } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -279,10 +279,15 @@ export default function LibraryPage() {
                             <MoreVertical className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="glass border-border/50 rounded-2xl shadow-xl w-40">
+                        <DropdownMenuContent align="end" className="glass border-border/50 rounded-2xl shadow-xl w-44">
                           <DropdownMenuItem className="cursor-pointer font-medium py-2" onClick={() => triggerDownload(cs)}>
                             <Download className="mr-2 h-4 w-4" /> Download PDF
                           </DropdownMenuItem>
+                          {canEdit && !isStaticStudy(cs.clientName || "") && (
+                            <DropdownMenuItem className="cursor-pointer font-medium py-2 text-primary" onClick={() => setLocation(`/generator/library/${cs.id}`)}>
+                              <Edit className="mr-2 h-4 w-4" /> Edit in Generator
+                            </DropdownMenuItem>
+                          )}
                           {canEdit && (
                             <DropdownMenuItem className="text-red-500 focus:text-red-500 cursor-pointer font-medium py-2 focus:bg-red-500/10" onClick={() => handleDelete(cs)}>
                               <Trash2 className="mr-2 h-4 w-4" /> Delete
