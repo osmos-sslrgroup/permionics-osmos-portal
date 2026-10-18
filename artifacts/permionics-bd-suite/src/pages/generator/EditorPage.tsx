@@ -201,7 +201,7 @@ export default function EditorPage({ projectId, mode = "creator" }: Props) {
             onPrint={() => printCaseStudy()}
             onBack={() => {
               if (mode === "library") {
-                navigate(`/library/${projectId}`);
+                navigate(`~/library/${projectId}`);
               } else {
                 navigate("~/generator");
               }
