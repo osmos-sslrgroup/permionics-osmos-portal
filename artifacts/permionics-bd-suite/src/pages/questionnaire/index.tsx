@@ -9,20 +9,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { customFetch, useGetMe } from '@workspace/api-client-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel
 } from '@/components/ui/dropdown-menu';
 import {
   Plus, Eye, Save, Loader2, FolderOpen, Trash2, MoreVertical, ClipboardList, ArrowLeft,
-  Building2, User2, MapPin, Calendar,
+  Building2, User2, MapPin, Calendar, FileText
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { motion, AnimatePresence } from 'framer-motion';
 
 function deepCopyState(state: SectorState): SectorState {
   return JSON.parse(JSON.stringify(state));
@@ -36,13 +36,13 @@ function initState(sectorId: string): SectorState {
 
 // ── Sector colour palette ─────────────────────────────────────────────────────
 const SECTOR_COLORS: Record<string, string> = {
-  pharma:   'bg-violet-100 text-violet-800 border-violet-200',
-  dairy:    'bg-blue-100 text-blue-800 border-blue-200',
-  water:    'bg-cyan-100 text-cyan-800 border-cyan-200',
-  food:     'bg-amber-100 text-amber-800 border-amber-200',
-  textile:  'bg-rose-100 text-rose-800 border-rose-200',
-  cetp:     'bg-emerald-100 text-emerald-800 border-emerald-200',
-  chemical: 'bg-orange-100 text-orange-800 border-orange-200',
+  pharma:   'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800',
+  dairy:    'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800',
+  water:    'bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-300 dark:border-cyan-800',
+  food:     'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800',
+  textile:  'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300 dark:border-teal-800',
+  cetp:     'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800',
+  chemical: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800',
 };
 
 export default function QuestionnairePage() {
@@ -152,6 +152,7 @@ export default function QuestionnairePage() {
 
   // ── Delete project ─────────────────────────────────────────────────────────
   const deleteProject = async (id: number) => {
+    if (!confirm("Are you sure you want to delete this project?")) return;
     try {
       await customFetch(`/api/projects/${id}`, { method: 'DELETE' });
       toast({ title: 'Deleted', description: 'Project deleted successfully.' });
@@ -241,129 +242,159 @@ export default function QuestionnairePage() {
   // ── RENDER: Project list ───────────────────────────────────────────────────
   if (view === 'list') {
     return (
-      <div className="max-w-5xl mx-auto p-8 space-y-8 text-foreground">
-        <div className="flex items-center justify-between">
-          <div>
+      <div className="max-w-7xl mx-auto p-8 space-y-10 text-foreground pb-20">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
             <h1 className="text-3xl font-extrabold tracking-tight">Questionnaire Builder</h1>
-            <p className="text-muted-foreground mt-1">Build and manage sector-specific technical questionnaires for clients.</p>
-          </div>
+            <p className="text-muted-foreground mt-1.5 font-medium">Build and manage sector-specific technical questionnaires for clients.</p>
+          </motion.div>
           {canEdit && (
-            <Button onClick={() => setNewProjectOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" /> New Project
-            </Button>
+            <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}>
+              <Button onClick={() => setNewProjectOpen(true)} className="h-10 rounded-xl px-5 font-bold shadow-md hover:scale-105 active:scale-95 transition-all">
+                <Plus className="w-4 h-4 mr-2" /> New Project
+              </Button>
+            </motion.div>
           )}
         </div>
 
         {loadingProjects ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+             {[1, 2, 3].map(i => <div key={i} className="h-48 glass rounded-3xl animate-pulse" />)}
           </div>
         ) : projects.length === 0 ? (
-          <div className="text-center py-20 border border-dashed rounded-xl bg-muted/10">
-            <ClipboardList className="w-10 h-10 mx-auto text-muted-foreground/40 mb-4" />
-            <p className="font-medium text-muted-foreground mb-2">No questionnaire projects yet</p>
-            <p className="text-sm text-muted-foreground mb-6">Create your first sector questionnaire to get started.</p>
-            <Button onClick={() => setNewProjectOpen(true)}><Plus className="w-4 h-4 mr-2" /> Create Project</Button>
-          </div>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center py-24 text-center glass rounded-3xl border-dashed border-2 border-border/50">
+            <ClipboardList className="w-12 h-12 text-foreground opacity-20 mb-4" />
+            <p className="text-lg font-bold text-foreground mb-1">No questionnaire projects yet</p>
+            <p className="text-sm font-medium text-muted-foreground mb-6 max-w-sm">Create your first sector questionnaire to get started building discovery documents.</p>
+            {canEdit && <Button onClick={() => setNewProjectOpen(true)} className="rounded-xl"><Plus className="w-4 h-4 mr-2" /> Create Project</Button>}
+          </motion.div>
         ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {projects.map((p) => {
-              const sector = SECTORS.find((s) => s.id === p.sector);
-              const colorClass = SECTOR_COLORS[p.sector] ?? 'bg-secondary text-secondary-foreground border-border';
-              return (
-                <Card
-                  key={p.id}
-                  className="hover:border-primary/40 hover:shadow-md transition-all cursor-pointer group"
-                  onClick={() => openProject(p.id)}
-                >
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <CardTitle className="text-base leading-tight truncate">{p.name}</CardTitle>
-                        <Badge className={`mt-1.5 text-xs font-medium border ${colorClass}`} variant="outline">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <AnimatePresence>
+              {projects.map((p, index) => {
+                const sector = SECTORS.find((s) => s.id === p.sector);
+                const colorClass = SECTOR_COLORS[p.sector] ?? 'bg-secondary text-secondary-foreground border-border';
+                return (
+                  <motion.div
+                    key={p.id}
+                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ delay: index * 0.05, duration: 0.3 }}
+                    className="group"
+                  >
+                    <div
+                      onClick={() => openProject(p.id)}
+                      className="glass rounded-3xl p-6 h-full flex flex-col cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-2 border border-glass-border hover:border-primary/30 relative overflow-hidden"
+                    >
+                      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                      
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center shadow-sm text-primary group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
+                          <FileText className="w-6 h-6" />
+                        </div>
+                        
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0 rounded-xl hover:bg-white/10 transition-colors">
+                                <span className="sr-only">Open menu</span>
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="glass border-border/50 rounded-2xl shadow-xl w-40">
+                              <DropdownMenuItem onClick={() => openProject(p.id)} className="cursor-pointer font-medium py-2 rounded-xl hover:bg-white/5">
+                                <FolderOpen className="w-4 h-4 mr-2" /> Open
+                              </DropdownMenuItem>
+                              {canEdit && (
+                                <DropdownMenuItem className="text-red-500 focus:text-red-500 cursor-pointer font-medium py-2 rounded-xl focus:bg-red-500/10" onClick={() => deleteProject(p.id)}>
+                                  <Trash2 className="w-4 h-4 mr-2" /> Delete
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
+
+                      <h3 className="text-xl font-bold leading-tight mb-2 text-foreground group-hover:text-primary transition-colors line-clamp-2">
+                        {p.name}
+                      </h3>
+                      
+                      <div className="mb-6 flex">
+                        <Badge variant="outline" className={`text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${colorClass}`}>
                           {sector?.name ?? p.sector}
                         </Badge>
                       </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                            <MoreVertical className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openProject(p.id); }}>
-                            <FolderOpen className="w-4 h-4 mr-2" /> Open
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={(e) => { e.stopPropagation(); deleteProject(p.id); }}>
-                            <Trash2 className="w-4 h-4 mr-2" /> Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+
+                      <div className="mt-auto space-y-2.5 bg-muted/10 p-3.5 rounded-2xl">
+                        {p.companyName && (
+                          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                            <Building2 className="w-4 h-4 flex-shrink-0 text-foreground/50" />
+                            <span className="truncate">{p.companyName}</span>
+                          </div>
+                        )}
+                        {p.contactPerson && (
+                          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                            <User2 className="w-4 h-4 flex-shrink-0 text-foreground/50" />
+                            <span className="truncate">{p.contactPerson}</span>
+                          </div>
+                        )}
+                        {p.location && (
+                          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                            <MapPin className="w-4 h-4 flex-shrink-0 text-foreground/50" />
+                            <span className="truncate">{p.location}</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground pt-4 mt-4 border-t border-border/30">
+                        <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
+                        <span>Updated {format(new Date(p.updatedAt), 'MMM d, yyyy')}</span>
+                      </div>
                     </div>
-                  </CardHeader>
-                  <CardContent className="space-y-1.5 pt-0">
-                    {p.companyName && (
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Building2 className="w-3.5 h-3.5 flex-shrink-0" />
-                        <span className="truncate">{p.companyName}</span>
-                      </div>
-                    )}
-                    {p.contactPerson && (
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <User2 className="w-3.5 h-3.5 flex-shrink-0" />
-                        <span className="truncate">{p.contactPerson}</span>
-                      </div>
-                    )}
-                    {p.location && (
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
-                        <span className="truncate">{p.location}</span>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-1 border-t border-border/50 mt-2">
-                      <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
-                      <span>Updated {format(new Date(p.updatedAt), 'MMM d, yyyy')}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
           </div>
         )}
 
         {/* New Project Dialog */}
         <Dialog open={newProjectOpen} onOpenChange={setNewProjectOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader><DialogTitle>New Questionnaire Project</DialogTitle></DialogHeader>
-            <div className="space-y-4 py-2">
+          <DialogContent className="max-w-2xl glass border-border/50 rounded-3xl p-8">
+            <DialogHeader className="mb-6">
+              <DialogTitle className="text-2xl font-bold">New Questionnaire Project</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-6 py-2">
               <div className="space-y-2">
-                <Label>Project Name</Label>
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Project Name</Label>
                 <Input
                   placeholder="e.g. Waaree Energies — Pharma Water Treatment"
                   value={newProjectName}
                   onChange={(e) => setNewProjectName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && createProject()}
                   autoFocus
+                  className="h-12 rounded-xl bg-background/50 border-border/50 focus-visible:ring-primary/50 text-base"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Sector</Label>
-                <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-3">
+                <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Select Sector</Label>
+                <div className="grid grid-cols-2 gap-3">
                   {SECTORS.map((s) => (
                     <button key={s.id} type="button"
-                      className={`text-left p-3 rounded-lg border text-sm transition-colors ${newProjectSector === s.id ? 'border-primary bg-primary/5 text-primary font-medium' : 'border-border hover:border-primary/40'}`}
+                      className={`text-left p-4 rounded-2xl border transition-all duration-200 ${newProjectSector === s.id ? 'border-primary bg-primary/10 shadow-[0_0_20px_rgba(var(--primary),0.15)]' : 'border-border/50 bg-background/30 hover:border-primary/40 hover:bg-white/5'}`}
                       onClick={() => setNewProjectSector(s.id)}
                     >
-                      <div className="font-medium">{s.name}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5 leading-tight">{s.description}</div>
+                      <div className={`font-bold ${newProjectSector === s.id ? 'text-primary' : 'text-foreground'}`}>{s.name}</div>
+                      <div className="text-xs text-muted-foreground font-medium mt-1 leading-snug">{s.description}</div>
                     </button>
                   ))}
                 </div>
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setNewProjectOpen(false)}>Cancel</Button>
-              <Button onClick={createProject} disabled={!newProjectName.trim()}>Create Project</Button>
+            <DialogFooter className="mt-8 gap-3 sm:gap-0">
+              <Button variant="ghost" onClick={() => setNewProjectOpen(false)} className="rounded-xl font-semibold h-12">Cancel</Button>
+              <Button onClick={createProject} disabled={!newProjectName.trim()} className="rounded-xl font-bold h-12 shadow-lg hover:scale-105 active:scale-95 transition-all">Create Project</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -373,98 +404,100 @@ export default function QuestionnairePage() {
 
   // ── RENDER: Builder ────────────────────────────────────────────────────────
   return (
-    <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
+    <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-background">
       {/* Left sidebar: client info + sector */}
-      <div className="w-72 border-r bg-muted/10 flex-shrink-0 flex flex-col">
-        <div className="p-4 border-b flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => { setView('list'); loadProjects(); }}>
-            <ArrowLeft className="w-4 h-4" />
+      <div className="w-80 flex-shrink-0 flex flex-col z-10 glass rounded-r-3xl my-4 ml-4 overflow-hidden border border-glass-border shadow-xl">
+        <div className="p-5 border-b border-border/50 flex items-center gap-3">
+          <Button variant="ghost" size="icon" className="rounded-full hover:bg-white/10" onClick={() => { setView('list'); loadProjects(); }}>
+            <ArrowLeft className="w-5 h-5" />
           </Button>
           <div className="flex-1 min-w-0">
-            <h2 className="text-sm font-semibold truncate">{projectName || 'Questionnaire Builder'}</h2>
-            <p className="text-xs text-muted-foreground">{activeSector?.name}</p>
+            <h2 className="text-base font-bold truncate text-foreground leading-tight">{projectName || 'Questionnaire Builder'}</h2>
+            <p className="text-xs font-semibold text-muted-foreground mt-0.5">{activeSector?.name}</p>
           </div>
         </div>
 
         <ScrollArea className="flex-1">
-          <div className="p-4 space-y-5">
+          <div className="p-6 space-y-8">
             {/* Client Info */}
-            <div className="space-y-3">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Client Information</h3>
-              <div className="space-y-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">Company Name</Label>
-                  <Input disabled={!canEdit} className="h-8 text-xs" placeholder="Company name..." value={sectorState.clientInfo.companyName} onChange={(e) => updateClientInfo('companyName', e.target.value)} />
+            <div className="space-y-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Client Information</h3>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Company Name</Label>
+                  <Input disabled={!canEdit} className="h-9 rounded-lg bg-background/50 border-border/50" placeholder="Company name..." value={sectorState.clientInfo.companyName} onChange={(e) => updateClientInfo('companyName', e.target.value)} />
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Contact Person</Label>
-                  <Input disabled={!canEdit} className="h-8 text-xs" placeholder="Name & designation..." value={sectorState.clientInfo.contactPerson} onChange={(e) => updateClientInfo('contactPerson', e.target.value)} />
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Contact Person</Label>
+                  <Input disabled={!canEdit} className="h-9 rounded-lg bg-background/50 border-border/50" placeholder="Name & designation..." value={sectorState.clientInfo.contactPerson} onChange={(e) => updateClientInfo('contactPerson', e.target.value)} />
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Location</Label>
-                  <Input disabled={!canEdit} className="h-8 text-xs" placeholder="City, State..." value={sectorState.clientInfo.location} onChange={(e) => updateClientInfo('location', e.target.value)} />
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Location</Label>
+                  <Input disabled={!canEdit} className="h-9 rounded-lg bg-background/50 border-border/50" placeholder="City, State..." value={sectorState.clientInfo.location} onChange={(e) => updateClientInfo('location', e.target.value)} />
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Date</Label>
-                  <Input disabled={!canEdit} className="h-8 text-xs" type="date" value={sectorState.clientInfo.date} onChange={(e) => updateClientInfo('date', e.target.value)} />
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Date</Label>
+                  <Input disabled={!canEdit} className="h-9 rounded-lg bg-background/50 border-border/50" type="date" value={sectorState.clientInfo.date} onChange={(e) => updateClientInfo('date', e.target.value)} />
                 </div>
               </div>
             </div>
 
             {/* Sector switcher */}
-            <div className="space-y-2">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Sector</h3>
-              {SECTORS.map((s) => (
-                <button key={s.id} type="button"
-                  disabled={!canEdit}
-                  className={`w-full text-left px-3 py-2 rounded text-xs transition-colors ${activeSectorId === s.id ? 'bg-primary text-primary-foreground font-semibold' : 'hover:bg-muted text-foreground'} ${!canEdit ? 'opacity-70 cursor-not-allowed' : ''}`}
-                  onClick={() => { if (activeSectorId !== s.id) { setActiveSectorId(s.id); setSectorState(initState(s.id)); } }}
-                >
-                  {s.name}
-                </button>
-              ))}
+            <div className="space-y-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Sector</h3>
+              <div className="space-y-1.5">
+                {SECTORS.map((s) => (
+                  <button key={s.id} type="button"
+                    disabled={!canEdit}
+                    className={`w-full text-left px-4 py-2.5 rounded-xl text-sm transition-all font-medium ${activeSectorId === s.id ? 'bg-primary text-white shadow-md' : 'hover:bg-white/10 text-foreground'} ${!canEdit ? 'opacity-70 cursor-not-allowed' : ''}`}
+                    onClick={() => { if (activeSectorId !== s.id) { setActiveSectorId(s.id); setSectorState(initState(s.id)); } }}
+                  >
+                    {s.name}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </ScrollArea>
 
         {/* Bottom actions */}
-        <div className="p-4 border-t space-y-2">
-          <Button size="sm" className="w-full bg-primary hover:bg-primary/90" onClick={() => setPreviewOpen(true)}>
+        <div className="p-5 border-t border-border/50 space-y-3 bg-white/5 backdrop-blur-md">
+          <Button className="w-full h-11 rounded-xl font-bold shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all bg-primary hover:bg-primary/90" onClick={() => setPreviewOpen(true)}>
             <Eye className="w-4 h-4 mr-2" /> Preview & Export PDF
           </Button>
           {canEdit && (
-            <>
-              <Button size="sm" variant="secondary" className="w-full" onClick={saveProject} disabled={isSaving}>
-                {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                Save Project
+            <div className="flex gap-2">
+              <Button variant="secondary" className="flex-1 h-11 rounded-xl font-semibold" onClick={saveProject} disabled={isSaving}>
+                {isSaving ? <Loader2 className="w-4 h-4 mx-auto animate-spin" /> : <><Save className="w-4 h-4 mr-2" /> Save</>}
               </Button>
-              <Button size="sm" variant="outline" className="w-full border-dashed" onClick={addSection}>
-                <Plus className="w-4 h-4 mr-2" /> Add Section
+              <Button variant="outline" className="flex-1 h-11 rounded-xl font-semibold border-dashed hover:border-primary/50 hover:bg-primary/5" onClick={addSection}>
+                <Plus className="w-4 h-4 mr-2" /> Section
               </Button>
-            </>
+            </div>
           )}
         </div>
       </div>
 
       {/* Main builder area */}
-      <ScrollArea className="flex-1 bg-muted/20">
-        <div className="p-6 max-w-3xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
+      <ScrollArea className="flex-1 pb-20">
+        <div className="p-8 md:p-12 max-w-4xl mx-auto space-y-8 animate-fade-in">
+          <div className="flex items-center justify-between glass rounded-3xl p-6 md:px-10 border border-border/50 shadow-sm">
             <div>
-              <h1 className="text-xl font-bold">{activeSector?.name ?? activeSectorId} Questionnaire</h1>
-              <p className="text-sm text-muted-foreground">{sectorState.questions.length} questions across {sectorState.sections.length} sections</p>
+              <h1 className="text-2xl font-extrabold">{activeSector?.name ?? activeSectorId} Questionnaire</h1>
+              <p className="text-sm font-medium text-muted-foreground mt-1">{sectorState.questions.length} questions across {sectorState.sections.length} sections</p>
             </div>
             {canEdit && (
-              <Button size="sm" variant="outline" onClick={() => addQuestion(undefined)}>
+              <Button variant="outline" onClick={() => addQuestion(undefined)} className="h-10 rounded-xl font-bold border-border/50 shadow-sm hover:scale-[1.02] transition-transform">
                 <Plus className="w-4 h-4 mr-2" /> Add Question
               </Button>
             )}
           </div>
 
           {sectorState.sections.length === 0 && sectorState.questions.length === 0 && (
-            <div className="text-center py-16 border border-dashed rounded-xl bg-card">
-              <ClipboardList className="w-8 h-8 mx-auto text-muted-foreground/40 mb-3" />
-              <p className="text-muted-foreground">No sections yet. Click "Add Section" to start building.</p>
+            <div className="text-center py-20 border-2 border-dashed border-border/50 rounded-3xl glass">
+              <ClipboardList className="w-10 h-10 mx-auto text-muted-foreground/40 mb-4" />
+              <p className="text-lg font-bold text-foreground">No sections yet</p>
+              <p className="text-sm font-medium text-muted-foreground mt-1">Click "Add Section" in the sidebar to start building.</p>
             </div>
           )}
 
@@ -474,32 +507,33 @@ export default function QuestionnairePage() {
               .sort((a, b) => a.number - b.number);
             const allQs = sectorState.questions;
             return (
-              <SectionBlock
-                key={section.id}
-                section={section}
-                questions={sectionQuestions}
-                onUpdateSection={updateSection}
-                onDeleteSection={deleteSection}
-                onAddQuestion={addQuestion}
-                onUpdateQuestion={updateQuestion}
-                onDeleteQuestion={deleteQuestion}
-                onMoveQuestionUp={(id) => { const idx = allQs.findIndex((q) => q.id === id); if (idx > 0) moveQuestion(id, 'up'); }}
-                onMoveQuestionDown={(id) => { const idx = allQs.findIndex((q) => q.id === id); if (idx < allQs.length - 1) moveQuestion(id, 'down'); }}
-                onDragStart={handleDragStart}
-                onDragOver={handleDragOver}
-                onDrop={handleDrop}
-                canEdit={canEdit}
-              />
+              <div key={section.id} className="glass rounded-3xl border border-border/50 shadow-sm overflow-hidden mb-8">
+                <SectionBlock
+                  section={section}
+                  questions={sectionQuestions}
+                  onUpdateSection={updateSection}
+                  onDeleteSection={deleteSection}
+                  onAddQuestion={addQuestion}
+                  onUpdateQuestion={updateQuestion}
+                  onDeleteQuestion={deleteQuestion}
+                  onMoveQuestionUp={(id) => { const idx = allQs.findIndex((q) => q.id === id); if (idx > 0) moveQuestion(id, 'up'); }}
+                  onMoveQuestionDown={(id) => { const idx = allQs.findIndex((q) => q.id === id); if (idx < allQs.length - 1) moveQuestion(id, 'down'); }}
+                  onDragStart={handleDragStart}
+                  onDragOver={handleDragOver}
+                  onDrop={handleDrop}
+                  canEdit={canEdit}
+                />
+              </div>
             );
           })}
 
           {/* Unsectioned questions */}
           {sectorState.questions.filter((q) => !q.sectionId).length > 0 && (
-            <div className="mt-4 bg-card border border-border rounded-lg shadow-sm overflow-hidden mb-6">
-              <div className="bg-secondary/30 p-3 border-b border-border">
-                <h3 className="text-sm font-semibold text-primary">Other Questions</h3>
+            <div className="glass border border-border/50 rounded-3xl shadow-sm overflow-hidden mb-8">
+              <div className="bg-secondary/30 p-4 px-6 border-b border-border/50">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-primary">Other Questions</h3>
               </div>
-              <div className="p-4 space-y-3 bg-muted/5">
+              <div className="p-6 space-y-4 bg-muted/5">
                 {sectorState.questions.filter((q) => !q.sectionId).sort((a, b) => a.number - b.number).map((q, idx, arr) => (
                   <QuestionRow
                     key={q.id}

@@ -277,3 +277,49 @@ export function migrateCaseStudyData(raw: any): CaseStudyData {
   if (d.operationsLabel === undefined) d.operationsLabel = "Operations";
   return d;
 }
+
+export function mapLibraryCaseStudyToData(cs: any): { data: CaseStudyData; palette: string } {
+  const rich = cs.richData || {};
+  const palette = rich.palette || "ocean-blue";
+
+  const raw: any = {
+    ...rich,
+    clientName: rich.clientName || cs.clientName || "",
+    sector: rich.sector || cs.sector || "",
+    location: rich.location || cs.location || "",
+    csTitle: rich.csTitle || cs.clientName || "Case Study",
+    application: rich.application || cs.technologyStack || "",
+    capacity: rich.capacity || cs.capacity || "",
+    intro: rich.intro || (cs.fullText ? cs.fullText.split("\n\n")[0] : "") || "",
+    challengeProblem: rich.challengeProblem || cs.challenge || "",
+    solDesign: rich.solDesign || cs.solution || "",
+    techList: rich.techList || cs.technologyStack || "",
+    conclusions: rich.conclusions || (cs.fullText ? cs.fullText.split("\n\n").slice(-1)[0] : "") || "",
+    plantImg: rich.plantImg || null,
+    plantCap: rich.plantCap || "",
+    plantImgCfg: rich.plantImgCfg || DEFAULT_PHOTO_CFG,
+    handshakeImg: rich.handshakeImg || null,
+    handshakeCap: rich.handshakeCap || cs.testimonial || "",
+    handshakeImgCfg: rich.handshakeImgCfg || DEFAULT_PHOTO_CFG,
+    beakersImg: rich.beakersImg || null,
+    beakersCap: rich.beakersCap || "",
+    beakersImgCfg: rich.beakersImgCfg || DEFAULT_PHOTO_CFG,
+  };
+
+  if (!raw.cards || !Array.isArray(raw.cards) || raw.cards.length === 0) {
+    if (cs.results) {
+      raw.cards = cs.results.split(" | ").map((cardStr: string) => {
+        const idx = cardStr.indexOf(":");
+        if (idx !== -1) {
+          return { number: cardStr.slice(0, idx).trim(), label: cardStr.slice(idx + 1).trim() };
+        }
+        return { number: "", label: cardStr.trim() };
+      });
+    }
+  }
+
+  return {
+    data: migrateCaseStudyData(raw),
+    palette,
+  };
+}

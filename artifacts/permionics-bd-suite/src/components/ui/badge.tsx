@@ -5,8 +5,8 @@ import { cva, type VariantProps } from 'class-variance-authority';
 const badgeVariants = cva(
   // @replit
   // Whitespace-nowrap: Badges should never wrap.
-  'whitespace-nowrap inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2' +
-    ' hover-elevate ',
+  'whitespace-nowrap inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold transition-all focus:outline-none focus:ring-2 focus:ring-primary/50 focus:ring-offset-2' +
+    ' hover:scale-[1.02] hover:shadow-sm',
   {
     variants: {
       variant: {

@@ -6,9 +6,11 @@ import App from './App.tsx';
 import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 import './index.css';
 
-// For production builds (like on Vercel) and local dev, we use relative paths (/api) 
-// to let the respective proxies (Vercel rewrite / Vite config) handle routing.
-// This resolves CORS and third-party cookie restrictions.
+// Configure API base URL if provided via environment variable (e.g., in Vercel),
+// otherwise fall back to relative paths for local dev and reverse proxies.
+if (import.meta.env.VITE_API_URL) {
+  setBaseUrl(import.meta.env.VITE_API_URL);
+}
 
 const queryClient = new QueryClient();
 

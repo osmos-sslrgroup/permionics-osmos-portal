@@ -58,8 +58,11 @@ export function PreviewModal({
           </Button>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-8 print:p-0 print:overflow-visible font-sans bg-white print:bg-white">
-          <div className="max-w-3xl mx-auto space-y-8 pb-10 print:pb-0">
+        <div className="flex-1 overflow-y-auto p-6 md:p-10 print:p-0 print:overflow-visible font-sans bg-muted/30 print:bg-white flex justify-center">
+          <div 
+            className="max-w-3xl w-full mx-auto space-y-8 p-10 md:p-14 print:p-0 bg-white print:bg-white rounded-[2rem] print:rounded-none shrink-0 border border-border/40"
+            style={{ boxShadow: "var(--shadow-xl)" }}
+          >
 
             {/* Header */}
             <div className="flex justify-between items-start border-b-2 border-primary pb-4 mb-6">
