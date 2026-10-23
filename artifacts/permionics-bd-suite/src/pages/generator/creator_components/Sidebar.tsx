@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useRef, useEffect } from "react";
-import { CaseStudyData, PhotoConfig, Palette, PALETTES } from "../creator_types";
+import { CaseStudyData, PhotoConfig, Palette, PALETTES, parseWaterRows, serializeWaterRows, STANDARD_WATER_DATA, WaterQualityRow } from "../creator_types";
 
 interface Props {
   data: CaseStudyData;
@@ -230,6 +230,162 @@ export function Sidebar({ data, palette, onPaletteChange, onChange, onPrint, onB
     );
   }
 
+function WaterTableSidebarEditor({
+  waterData,
+  onChange,
+  lbl,
+  inp,
+  sec,
+}: {
+  waterData: string;
+  onChange: (val: string) => void;
+  lbl: string;
+  inp: string;
+  sec: string;
+}) {
+  const [mode, setMode] = useState<"table" | "raw">("table");
+  const rows = parseWaterRows(waterData);
+
+  const updateRow = (idx: number, field: keyof WaterQualityRow, val: string) => {
+    const updated = [...rows];
+    if (!updated[idx]) return;
+    updated[idx] = { ...updated[idx], [field]: val };
+    onChange(serializeWaterRows(updated));
+  };
+
+  const addRow = () => {
+    const updated = [...rows, { parameter: "", unit: "ppm", feed: "", treated: "" }];
+    onChange(serializeWaterRows(updated));
+  };
+
+  const deleteRow = (idx: number) => {
+    const updated = rows.filter((_, i) => i !== idx);
+    onChange(serializeWaterRows(updated));
+  };
+
+  const loadStandardTemplate = () => {
+    onChange(STANDARD_WATER_DATA);
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between mt-1">
+        <span className={sec} style={{ margin: 0 }}>Water Quality Table</span>
+        <button
+          type="button"
+          onClick={() => setMode(mode === "table" ? "raw" : "table")}
+          className="text-[10px] text-blue-300 hover:text-white bg-blue-950/60 px-2 py-0.5 rounded border border-blue-800/60 transition-colors"
+        >
+          {mode === "table" ? "Paste / Raw Text" : "Visual Grid"}
+        </button>
+      </div>
+
+      {mode === "raw" ? (
+        <div className="flex flex-col gap-1.5">
+          <label className={lbl}>Paste lines from Excel/PDF or type (Parameter | Unit | Feed | Treated):</label>
+          <textarea
+            className="w-full text-xs font-mono p-2 rounded border border-gray-700 bg-gray-900 text-gray-100 focus:outline-none focus:border-blue-500"
+            rows={8}
+            value={waterData}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="Parameter | Unit | Feed | Treated"
+          />
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const parsed = parseWaterRows(waterData);
+                onChange(serializeWaterRows(parsed));
+                setMode("table");
+              }}
+              className="text-xs bg-blue-600 hover:bg-blue-500 text-white font-medium px-2.5 py-1 rounded transition-colors"
+            >
+              Parse to Grid
+            </button>
+            <button
+              type="button"
+              onClick={loadStandardTemplate}
+              className="text-[11px] text-gray-400 hover:text-white underline transition-colors"
+            >
+              Load Standard Template
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          <div className="max-h-[300px] overflow-y-auto border border-gray-700/60 rounded bg-gray-950/40 p-1 flex flex-col gap-1.5">
+            <div className="grid grid-cols-[1fr_45px_55px_55px_20px] gap-1 px-1 text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+              <span>Parameter</span>
+              <span>Unit</span>
+              <span>Feed</span>
+              <span>Treated</span>
+              <span></span>
+            </div>
+            {rows.map((r, i) => (
+              <div key={i} className="grid grid-cols-[1fr_45px_55px_55px_20px] gap-1 items-center">
+                <input
+                  className="bg-gray-900 text-white border border-gray-700/80 rounded px-1.5 py-1 text-[11px] focus:outline-none focus:border-blue-400"
+                  value={r.parameter}
+                  onChange={(e) => updateRow(i, "parameter", e.target.value)}
+                  placeholder="e.g. TDS"
+                />
+                <input
+                  className="bg-gray-900 text-white border border-gray-700/80 rounded px-1 py-1 text-[11px] focus:outline-none focus:border-blue-400"
+                  value={r.unit}
+                  onChange={(e) => updateRow(i, "unit", e.target.value)}
+                  placeholder="ppm"
+                />
+                <input
+                  className="bg-gray-900 text-white border border-gray-700/80 rounded px-1 py-1 text-[11px] focus:outline-none focus:border-blue-400"
+                  value={r.feed}
+                  onChange={(e) => updateRow(i, "feed", e.target.value)}
+                  placeholder="5,000"
+                />
+                <input
+                  className="bg-gray-900 text-emerald-400 font-semibold border border-gray-700/80 rounded px-1 py-1 text-[11px] focus:outline-none focus:border-blue-400"
+                  value={r.treated}
+                  onChange={(e) => updateRow(i, "treated", e.target.value)}
+                  placeholder="<200"
+                />
+                <button
+                  type="button"
+                  onClick={() => deleteRow(i)}
+                  className="text-red-400 hover:text-red-300 font-bold text-xs flex items-center justify-center p-0.5"
+                  title="Remove row"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+            {rows.length === 0 && (
+              <div className="text-[11px] text-gray-500 py-3 text-center italic">
+                No parameters added yet.
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between gap-2 mt-1">
+            <button
+              type="button"
+              onClick={addRow}
+              className="text-[11px] bg-blue-600/80 hover:bg-blue-600 text-white font-medium px-2.5 py-1 rounded transition-colors flex items-center gap-1"
+            >
+              + Add Parameter
+            </button>
+            <button
+              type="button"
+              onClick={loadStandardTemplate}
+              className="text-[10px] text-gray-400 hover:text-white underline transition-colors"
+            >
+              Load Standard Template
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
   return (
     <div className="flex flex-col h-full overflow-hidden" style={{ width: "300px", minWidth: "300px" }}>
       {/* Header */}
@@ -429,8 +585,13 @@ export function Sidebar({ data, palette, onPaletteChange, onChange, onPrint, onB
               <div className="flex flex-col gap-1"><label className={lbl}>Card {i + 1} — Label (↵ = new line)</label><textarea className={ta} rows={2} value={card.label} onChange={(e) => setCard(i, "label", e.target.value)} /></div>
             </div>
           ))}
-          <div className={sec}>Water Quality Table</div>
-          <div className="flex flex-col gap-1"><label className={lbl}>Rows: Parameter | Unit | Feed | Treated (one per line)</label><textarea className={ta} rows={10} value={data.waterData} onChange={(e) => set("waterData", e.target.value)} /></div>
+          <WaterTableSidebarEditor
+            waterData={data.waterData}
+            onChange={(val) => set("waterData", val)}
+            lbl={lbl}
+            inp={inp}
+            sec={sec}
+          />
           <div className={sec}>Page 2 Sidebar</div>
           <div className="flex flex-col gap-1"><label className={lbl}>Performance Stability bullets (one per line)</label><textarea className={ta} rows={4} value={data.perfStab} onChange={(e) => set("perfStab", e.target.value)} /></div>
           <div className="flex flex-col gap-1"><label className={lbl}>Value Delivered bullets (one per line)</label><textarea className={ta} rows={4} value={data.valueDel} onChange={(e) => set("valueDel", e.target.value)} /></div>
