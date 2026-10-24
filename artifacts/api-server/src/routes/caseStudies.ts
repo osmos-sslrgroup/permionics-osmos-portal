@@ -14,6 +14,14 @@ const upload = multer({ dest: os.tmpdir() });
 const router: IRouter = Router();
 
 function mapCaseStudyRow(row: any) {
+  let tags = row.tags || [];
+  if (typeof tags === "string") {
+    try { tags = JSON.parse(tags); } catch {}
+  }
+  let richData = row.rich_data || null;
+  if (typeof richData === "string") {
+    try { richData = JSON.parse(richData); } catch {}
+  }
   return {
     id: Number(row.id),
     clientName: row.client_name,
@@ -25,9 +33,9 @@ function mapCaseStudyRow(row: any) {
     capacity: row.capacity || "",
     results: row.results || "",
     testimonial: row.testimonial,
-    tags: row.tags || [],
+    tags: Array.isArray(tags) ? tags : [],
     fullText: row.full_text || "",
-    richData: row.rich_data || null,
+    richData: richData,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -411,7 +419,7 @@ router.post("/case-studies/upload", requireAuth, upload.single("file"), async (r
     try {
       const { PDFParse } = await import("pdf-parse");
       const dataBuffer = fs.readFileSync(tempPath);
-      const parser = new (PDFParse as any)(new Uint8Array(dataBuffer));
+      const parser = new (PDFParse as any)({ data: dataBuffer });
       const result = await parser.getText();
       fullText = (result.text || "").trim();
     } catch (err) {
