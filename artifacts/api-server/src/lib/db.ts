@@ -349,6 +349,8 @@ function createPostgresQueryBuilder(tableName: string) {
         let sqlQuery = "";
         let params = [...queryParams];
 
+        const JSONB_COLUMNS = new Set(["tags", "rich_data", "questions", "answers", "data"]);
+
         if (action === "select") {
           const whereSql = whereConditions.length > 0 ? ` WHERE ${whereConditions.join(" AND ")}` : "";
           sqlQuery = `SELECT ${selectFields} FROM ${tableName}${whereSql}${orderByClause}${limitClause}`;
@@ -357,7 +359,13 @@ function createPostgresQueryBuilder(tableName: string) {
           const keys = Object.keys(row);
           const cols = keys.join(", ");
           const vals = keys.map((_, i) => `$${i + 1}`).join(", ");
-          params = keys.map((k) => row[k]);
+          params = keys.map((k) => {
+            const val = row[k];
+            if (val !== null && val !== undefined && JSONB_COLUMNS.has(k) && typeof val === "object") {
+              return JSON.stringify(val);
+            }
+            return val;
+          });
 
           if (action === "upsert") {
             const conflictCol = onConflictTarget || "email";
@@ -369,7 +377,13 @@ function createPostgresQueryBuilder(tableName: string) {
         } else if (action === "update") {
           const keys = Object.keys(payloadData);
           const setClause = keys.map((k, i) => `${k} = $${i + 1}`).join(", ");
-          params = [...keys.map((k) => payloadData[k])];
+          params = keys.map((k) => {
+            const val = payloadData[k];
+            if (val !== null && val !== undefined && JSONB_COLUMNS.has(k) && typeof val === "object") {
+              return JSON.stringify(val);
+            }
+            return val;
+          });
           const offset = keys.length;
           const whereSql = whereConditions.length > 0 ? ` WHERE ${whereConditions.map((c, i) => c.replace(/\$\d+/, `$${offset + i + 1}`)).join(" AND ")}` : "";
           params.push(...queryParams);

@@ -7,12 +7,21 @@ import path from "path";
 import multer from "multer";
 import os from "os";
 import { GoogleGenAI } from "@google/genai";
+import { parseCaseStudyText } from "../lib/pdfCaseStudyParser";
 
 const upload = multer({ dest: os.tmpdir() });
 
 const router: IRouter = Router();
 
 function mapCaseStudyRow(row: any) {
+  let tags = row.tags || [];
+  if (typeof tags === "string") {
+    try { tags = JSON.parse(tags); } catch { }
+  }
+  let richData = row.rich_data || null;
+  if (typeof richData === "string") {
+    try { richData = JSON.parse(richData); } catch { }
+  }
   return {
     id: Number(row.id),
     clientName: row.client_name,
@@ -24,9 +33,9 @@ function mapCaseStudyRow(row: any) {
     capacity: row.capacity || "",
     results: row.results || "",
     testimonial: row.testimonial,
-    tags: row.tags || [],
+    tags: Array.isArray(tags) ? tags : [],
     fullText: row.full_text || "",
-    richData: row.rich_data || null,
+    richData: richData,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -405,19 +414,13 @@ router.post("/case-studies/upload", requireAuth, upload.single("file"), async (r
   debugLog("API_REQ", "POST /case-studies/upload", { originalName, size: req.file.size });
 
   try {
-    // 1. Sanitize name
-    const parsedName = path.parse(originalName).name;
-    const clientName = parsedName.replace(/[^a-zA-Z0-9\s-_]/g, "").trim() || "Uploaded Case Study";
-    const sanitizedFilename = clientName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase() + ".pdf";
-
-    // 2. Read file to extract plain text
+    // 1. Read file to extract plain text
     let fullText = "";
     try {
-      const { createRequire } = await import("module");
-      const require = createRequire(import.meta.url);
-      const pdfParse = require("pdf-parse");
+      const { PDFParse } = await import("pdf-parse");
       const dataBuffer = fs.readFileSync(tempPath);
-      const result = await pdfParse(dataBuffer);
+      const parser = new (PDFParse as any)({ data: dataBuffer });
+      const result = await parser.getText();
       fullText = (result.text || "").trim();
     } catch (err) {
       req.log.warn({ err }, "pdf-parse failed to parse uploaded case study text");
@@ -432,7 +435,7 @@ router.post("/case-studies/upload", requireAuth, upload.single("file"), async (r
         const ai = new GoogleGenAI({ apiKey: geminiKey });
         const pdfBytes = fs.readFileSync(tempPath);
         const base64Pdf = pdfBytes.toString("base64");
-        
+
         const response = await ai.models.generateContent({
           model: "gemini-1.5-flash",
           contents: [
@@ -469,37 +472,36 @@ Do NOT summarize — extract the full verbatim text.`,
       }
     }
 
-    // 3. Determine sector and technology from content
-    const textLower = fullText.toLowerCase();
-    let sector = "Pharma/Herbal";
-    if (textLower.includes("textile")) {
-      sector = "Textile";
-    } else if (textLower.includes("cetp") || textLower.includes("municipal") || textLower.includes("effluent")) {
-      sector = "CETP/Municipal";
-    } else if (textLower.includes("food") || textLower.includes("beverage")) {
-      sector = "Food & Beverage";
-    } else if (textLower.includes("dairy") || textLower.includes("milk")) {
-      sector = "Dairy";
-    } else if (textLower.includes("pharma") || textLower.includes("herbal") || textLower.includes("medical")) {
-      sector = "Pharma/Herbal";
-    } else if (textLower.includes("water") || textLower.includes("sewage")) {
-      sector = "Water/Wastewater";
+    // 2. Deterministically parse Permionics 2-page case study structure
+    const parsed = parseCaseStudyText(fullText);
+
+    // 3. Fallback client name if missing
+    const originalBaseName = path.parse(originalName).name.replace(/[^a-zA-Z0-9\s-_]/g, "").trim();
+    const finalClientName = (parsed.clientName && parsed.clientName !== "Permionics Project")
+      ? parsed.clientName
+      : (originalBaseName || "Uploaded Case Study");
+
+    const sanitizedFilename = finalClientName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase() + ".pdf";
+
+    // 4. Build results summary string from metric cards if available
+    let resultsSummary = parsed.cards.length > 0
+      ? parsed.cards.map((c) => `${c.number} ${c.label}`).join(" | ")
+      : "Engineered membrane solution delivering compliance and recovery.";
+
+    // 5. Construct tags
+    const tagSet = new Set<string>();
+    if (parsed.technologyStack) tagSet.add(parsed.technologyStack);
+    if (parsed.sector) {
+      parsed.sector.split("/").forEach((s) => {
+        const trimmed = s.trim();
+        if (trimmed) tagSet.add(trimmed);
+      });
+    }
+    if (parsed.location && parsed.location !== "India") {
+      tagSet.add(parsed.location.split(",")[0].trim());
     }
 
-    let technologyStack = "RO";
-    if (textLower.includes("mbr")) {
-      technologyStack = "MBR";
-    } else if (textLower.includes("zld")) {
-      technologyStack = "ZLD";
-    } else if (/\buf\b/i.test(textLower) || textLower.includes("ultrafiltration")) {
-      technologyStack = "UF";
-    } else if (/\bnf\b/i.test(textLower) || textLower.includes("nanofiltration")) {
-      technologyStack = "NF";
-    } else if (/\bro\b/i.test(textLower) || textLower.includes("reverse osmosis")) {
-      technologyStack = "RO";
-    }
-
-    // 4. Save file to pdfs/ folder
+    // 6. Save PDF file to pdfs/ folder
     const pdfsDir = path.resolve(process.cwd(), "pdfs");
     if (!fs.existsSync(pdfsDir)) {
       fs.mkdirSync(pdfsDir, { recursive: true });
@@ -507,19 +509,20 @@ Do NOT summarize — extract the full verbatim text.`,
     const targetPath = path.join(pdfsDir, sanitizedFilename);
     fs.copyFileSync(tempPath, targetPath);
 
-    // 5. Insert record into database
+    // 7. Insert rich record into database
     const insertData = {
-      client_name: clientName,
-      sector: sector,
-      location: "India",
-      challenge: "Technical membrane filtration process implementation.",
-      solution: "Engineered high-performance membrane design.",
-      technology_stack: technologyStack,
-      capacity: "N/A",
-      results: "System operated with compliance and process efficiency.",
+      client_name: finalClientName,
+      sector: parsed.sector || "Water/Wastewater",
+      location: parsed.location || "India",
+      challenge: parsed.challengeProblem || "Technical membrane filtration challenge requiring process optimization.",
+      solution: parsed.solDesign || "Engineered membrane separation solution.",
+      technology_stack: parsed.technologyStack || "RO",
+      capacity: parsed.capacity || "N/A",
+      results: resultsSummary,
       testimonial: null,
-      tags: [technologyStack, sector.split("/")[0]],
-      full_text: fullText || `Uploaded Case Study Report for ${clientName}`,
+      tags: Array.from(tagSet),
+      full_text: parsed.fullText || fullText || `Uploaded Case Study Report for ${finalClientName}`,
+      rich_data: parsed.richData,
     };
 
     const { data: row, error } = await supabase

@@ -278,6 +278,46 @@ export function migrateCaseStudyData(raw: any): CaseStudyData {
   return d;
 }
 
+export const STANDARD_WATER_DATA =
+  "Feed Flow Rate|MLD|24|20\nTotal Dissolved Solids|ppm|5,000|<200\nSuspended Solids|ppm|25|Nil\nTotal Hardness (as CaCO3)|ppm|<2,000|<50\nSilica (as SiO2)|ppm|<44|<2\nCOD|ppm|<100|Nil\nTurbidity|NTU|<10|Nil\nColour|—|Tinge Yellow|Transparent White\npH (at 32°C)|—|7.11|6.5–7.0";
+
+export interface WaterQualityRow {
+  parameter: string;
+  unit: string;
+  feed: string;
+  treated: string;
+}
+
+export function parseWaterRows(raw?: string): WaterQualityRow[] {
+  if (!raw) return [];
+  const lines = String(raw).split("\n").map((l) => l.trim()).filter(Boolean);
+  return lines.map((line) => {
+    let parts: string[] = [];
+    if (line.includes("|")) {
+      parts = line.split("|").map((p) => p.trim());
+    } else if (line.includes("\t")) {
+      parts = line.split("\t").map((p) => p.trim());
+    } else if (line.includes(",")) {
+      parts = line.split(",").map((p) => p.trim());
+    } else {
+      parts = line.split(/\s{2,}/).map((p) => p.trim());
+    }
+    return {
+      parameter: parts[0] || "",
+      unit: parts[1] || "",
+      feed: parts[2] || "",
+      treated: parts[3] || "",
+    };
+  });
+}
+
+export function serializeWaterRows(rows: WaterQualityRow[]): string {
+  return rows
+    .filter((r) => r.parameter || r.unit || r.feed || r.treated)
+    .map((r) => `${r.parameter.trim()}|${r.unit.trim()}|${r.feed.trim()}|${r.treated.trim()}`)
+    .join("\n");
+}
+
 export function mapLibraryCaseStudyToData(cs: any): { data: CaseStudyData; palette: string } {
   const rich = cs.richData || {};
   const palette = rich.palette || "ocean-blue";
@@ -295,6 +335,11 @@ export function mapLibraryCaseStudyToData(cs: any): { data: CaseStudyData; palet
     solDesign: rich.solDesign || cs.solution || "",
     techList: rich.techList || cs.technologyStack || "",
     conclusions: rich.conclusions || (cs.fullText ? cs.fullText.split("\n\n").slice(-1)[0] : "") || "",
+    waterData: rich.waterData !== undefined ? rich.waterData : DEFAULT_DATA.waterData,
+    perfStab: rich.perfStab || DEFAULT_DATA.perfStab,
+    valueDel: rich.valueDel || DEFAULT_DATA.valueDel,
+    envImpact: rich.envImpact || DEFAULT_DATA.envImpact,
+    fig1text: rich.fig1text || DEFAULT_DATA.fig1text,
     plantImg: rich.plantImg || null,
     plantCap: rich.plantCap || "",
     plantImgCfg: rich.plantImgCfg || DEFAULT_PHOTO_CFG,

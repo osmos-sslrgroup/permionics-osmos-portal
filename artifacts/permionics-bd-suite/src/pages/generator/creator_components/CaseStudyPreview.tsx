@@ -1,6 +1,4 @@
-// @ts-nocheck
-import { useRef } from "react";
-import { CaseStudyData, PhotoConfig, Palette, formatSectorDefault } from "../creator_types";
+import { CaseStudyData, PhotoConfig, Palette, formatSectorDefault, parseWaterRows, serializeWaterRows, WaterQualityRow } from "../creator_types";
 import logoUrl from "@assets/logo_white.png";
 
 interface Props {
@@ -13,14 +11,6 @@ interface Props {
 function lines(text?: string): string[] {
   if (!text) return [];
   return String(text).split("\n").map((l) => l.trim()).filter(Boolean);
-}
-
-function parseWaterRows(raw?: string) {
-  if (!raw) return [];
-  return String(raw).split("\n").map((l) => l.trim()).filter(Boolean).map((row) => {
-    const parts = row.split("|").map((p) => p.trim());
-    return { parameter: parts[0] || "", unit: parts[1] || "", feed: parts[2] || "", treated: parts[3] || "" };
-  });
 }
 
 function highlightTitle(title: string, highlight: string, highlightColor: string) {
@@ -66,6 +56,23 @@ export function CaseStudyPreview({ data, palette, editable = false, onChange }: 
 
   const editField = (field: EditableField, value: string) => {
     if (onChange) onChange({ ...data, [field]: value });
+  };
+
+  const handleWaterCellBlur = (rowIndex: number, col: keyof WaterQualityRow, newVal: string) => {
+    const updated = [...waterRows];
+    if (!updated[rowIndex]) return;
+    updated[rowIndex] = { ...updated[rowIndex], [col]: newVal.trim() };
+    editField("waterData", serializeWaterRows(updated));
+  };
+
+  const handleAddWaterRow = () => {
+    const updated = [...waterRows, { parameter: "New Parameter", unit: "ppm", feed: "0", treated: "0" }];
+    editField("waterData", serializeWaterRows(updated));
+  };
+
+  const handleDeleteWaterRow = (rowIndex: number) => {
+    const updated = waterRows.filter((_, idx) => idx !== rowIndex);
+    editField("waterData", serializeWaterRows(updated));
   };
 
   function EditText({
@@ -339,19 +346,107 @@ export function CaseStudyPreview({ data, palette, editable = false, onChange }: 
                 {["Parameter", "Unit", "Feed (Raw)", "Treated Water"].map((h) => (
                   <th key={h} style={{ padding: "6px 8px", textAlign: "left", fontWeight: 600, fontSize: "7.5pt", letterSpacing: "0.3px" }}>{h}</th>
                 ))}
+                {editable && <th className="print-hide" style={{ width: "24px", padding: "6px 4px" }} />}
               </tr>
             </thead>
             <tbody>
               {waterRows.map((row, i) => (
                 <tr key={i} className="print-avoid-break" style={{ background: i % 2 === 0 ? "#fff" : light }}>
-                  <td style={{ padding: "5px 8px", borderBottom: `1px solid ${lightBorder}`, fontWeight: 600, color: primary, fontSize: "8pt" }}>{row.parameter}</td>
-                  <td style={{ padding: "5px 8px", borderBottom: `1px solid ${lightBorder}`, color: "#555", fontSize: "8pt" }}>{row.unit}</td>
-                  <td style={{ padding: "5px 8px", borderBottom: `1px solid ${lightBorder}`, color: "#333", fontSize: "8pt" }}>{row.feed}</td>
-                  <td style={{ padding: "5px 8px", borderBottom: `1px solid ${lightBorder}`, color: "#1a6b3c", fontWeight: 600, fontSize: "8pt" }}>{row.treated}</td>
+                  <td style={{ padding: "5px 8px", borderBottom: `1px solid ${lightBorder}`, fontWeight: 600, color: primary, fontSize: "8pt" }}>
+                    {editable ? (
+                      <span
+                        contentEditable
+                        suppressContentEditableWarning
+                        className="cs-editable-text"
+                        style={{ display: "inline-block", minWidth: "30px", cursor: "text" }}
+                        onBlur={(e) => handleWaterCellBlur(i, "parameter", e.currentTarget.innerText)}
+                        dangerouslySetInnerHTML={{ __html: row.parameter }}
+                      />
+                    ) : (
+                      row.parameter
+                    )}
+                  </td>
+                  <td style={{ padding: "5px 8px", borderBottom: `1px solid ${lightBorder}`, color: "#555", fontSize: "8pt" }}>
+                    {editable ? (
+                      <span
+                        contentEditable
+                        suppressContentEditableWarning
+                        className="cs-editable-text"
+                        style={{ display: "inline-block", minWidth: "20px", cursor: "text" }}
+                        onBlur={(e) => handleWaterCellBlur(i, "unit", e.currentTarget.innerText)}
+                        dangerouslySetInnerHTML={{ __html: row.unit }}
+                      />
+                    ) : (
+                      row.unit
+                    )}
+                  </td>
+                  <td style={{ padding: "5px 8px", borderBottom: `1px solid ${lightBorder}`, color: "#333", fontSize: "8pt" }}>
+                    {editable ? (
+                      <span
+                        contentEditable
+                        suppressContentEditableWarning
+                        className="cs-editable-text"
+                        style={{ display: "inline-block", minWidth: "20px", cursor: "text" }}
+                        onBlur={(e) => handleWaterCellBlur(i, "feed", e.currentTarget.innerText)}
+                        dangerouslySetInnerHTML={{ __html: row.feed }}
+                      />
+                    ) : (
+                      row.feed
+                    )}
+                  </td>
+                  <td style={{ padding: "5px 8px", borderBottom: `1px solid ${lightBorder}`, color: "#1a6b3c", fontWeight: 600, fontSize: "8pt" }}>
+                    {editable ? (
+                      <span
+                        contentEditable
+                        suppressContentEditableWarning
+                        className="cs-editable-text"
+                        style={{ display: "inline-block", minWidth: "20px", cursor: "text" }}
+                        onBlur={(e) => handleWaterCellBlur(i, "treated", e.currentTarget.innerText)}
+                        dangerouslySetInnerHTML={{ __html: row.treated }}
+                      />
+                    ) : (
+                      row.treated
+                    )}
+                  </td>
+                  {editable && (
+                    <td className="print-hide" style={{ padding: "2px 4px", borderBottom: `1px solid ${lightBorder}`, textAlign: "center", width: "24px" }}>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteWaterRow(i)}
+                        title="Delete parameter row"
+                        style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", fontSize: "12px", fontWeight: "bold", padding: "2px 4px" }}
+                      >
+                        ×
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
           </table>
+          {editable && (
+            <div className="print-hide" style={{ marginTop: "4px", marginBottom: "8px" }}>
+              <button
+                type="button"
+                onClick={handleAddWaterRow}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  fontSize: "7.5pt",
+                  fontWeight: 600,
+                  color: primary,
+                  background: light,
+                  border: `1px dashed ${primary}`,
+                  borderRadius: "4px",
+                  padding: "4px 10px",
+                  cursor: "pointer",
+                }}
+              >
+                + Add Parameter Row
+              </button>
+            </div>
+          )}
 
           <div style={{ display: "flex", gap: "16px", marginTop: "12px" }}>
             <div style={{ flex: 1, minWidth: 0 }}>
