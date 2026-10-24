@@ -16,11 +16,11 @@ const router: IRouter = Router();
 function mapCaseStudyRow(row: any) {
   let tags = row.tags || [];
   if (typeof tags === "string") {
-    try { tags = JSON.parse(tags); } catch {}
+    try { tags = JSON.parse(tags); } catch { }
   }
   let richData = row.rich_data || null;
   if (typeof richData === "string") {
-    try { richData = JSON.parse(richData); } catch {}
+    try { richData = JSON.parse(richData); } catch { }
   }
   return {
     id: Number(row.id),
@@ -435,7 +435,7 @@ router.post("/case-studies/upload", requireAuth, upload.single("file"), async (r
         const ai = new GoogleGenAI({ apiKey: geminiKey });
         const pdfBytes = fs.readFileSync(tempPath);
         const base64Pdf = pdfBytes.toString("base64");
-        
+
         const response = await ai.models.generateContent({
           model: "gemini-1.5-flash",
           contents: [

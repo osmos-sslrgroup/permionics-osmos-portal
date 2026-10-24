@@ -101,7 +101,8 @@ export default function CaseStudyDetail() {
     if (isStatic) {
       window.open(`/api/case-studies/${numId}/download`, '_blank');
     } else {
-      printCaseStudy();
+      const mapped = data ? mapLibraryCaseStudyToData(data).data : undefined;
+      printCaseStudy(mapped);
     }
   };
 

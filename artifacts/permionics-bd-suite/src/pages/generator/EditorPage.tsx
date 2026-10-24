@@ -198,7 +198,7 @@ export default function EditorPage({ projectId, mode = "creator" }: Props) {
             palette={palette}
             onPaletteChange={handlePaletteChange}
             onChange={handleDataChange}
-            onPrint={() => printCaseStudy()}
+            onPrint={() => printCaseStudy(data)}
             onBack={() => {
               if (mode === "library") {
                 navigate(`~/library/${projectId}`);
@@ -274,7 +274,7 @@ export default function EditorPage({ projectId, mode = "creator" }: Props) {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-52 p-1.5 backdrop-blur-md bg-white/95 dark:bg-black/95 border border-border/50 shadow-xl rounded-xl z-50">
                 <DropdownMenuItem
-                  onClick={() => printCaseStudy()}
+                  onClick={() => printCaseStudy(data)}
                   className="w-full text-left px-3 py-2.5 text-xs text-foreground hover:bg-muted cursor-pointer rounded-lg flex items-center gap-2 font-bold"
                 >
                   📄 Multi-Page A4 PDF
