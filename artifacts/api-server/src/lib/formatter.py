@@ -1,6 +1,18 @@
 import sys
-from docx import Document
-from docx.shared import Inches
+
+try:
+    from docx import Document
+    from docx.shared import Inches
+except ModuleNotFoundError:
+    import subprocess
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "--break-system-packages", "python-docx"])
+        from docx import Document
+        from docx.shared import Inches
+    except Exception:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "python-docx"])
+        from docx import Document
+        from docx.shared import Inches
 
 def main():
     if len(sys.argv) < 9:
