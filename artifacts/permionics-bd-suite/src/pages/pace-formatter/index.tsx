@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import * as docx from "docx-preview";
 import { motion, AnimatePresence } from "framer-motion";
+import { customFetch } from "@workspace/api-client-react";
 
 function normalizeDateToDDMMYYYY(val: string): string {
   if (!val || !val.trim()) return "";
@@ -67,31 +68,14 @@ export default function PaceFormatterPage() {
     });
 
     try {
-      const response = await fetch("/api/documents/format-pace", {
+      const blob = await customFetch<Blob>("/api/documents/format-pace", {
         method: "POST",
         body: form,
-        credentials: "include",
+        responseType: "blob",
       });
 
-      if (response.status === 401) {
-        toast({
-          title: "Session Expired",
-          description: "Your session has expired. Redirecting to login...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/login";
-        }, 1200);
-        return;
-      }
-
-      if (!response.ok) {
-        const errJson = await response.json().catch(() => null);
-        throw new Error(errJson?.error || "Failed to process document");
-      }
-
-      const blob = await response.blob();
       setProcessedBlob(blob);
+
       
       toast({
         title: "Success",
@@ -130,11 +114,11 @@ export default function PaceFormatterPage() {
           });
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
       toast({
         title: "Error",
-        description: "An error occurred while formatting the document.",
+        description: error?.message || "An error occurred while formatting the document.",
         variant: "destructive"
       });
     } finally {
