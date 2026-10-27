@@ -22,10 +22,24 @@ def main():
         print(f"Error reading docx: {e}")
         sys.exit(1)
 
+    import re
+
+    def normalize_date(date_str: str) -> str:
+        if not date_str:
+            return ""
+        s = date_str.strip()
+        m_ymd = re.match(r"^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$", s)
+        if m_ymd:
+            return f"{int(m_ymd.group(3)):02d}/{int(m_ymd.group(2)):02d}/{m_ymd.group(1)}"
+        m_dmy = re.match(r"^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$", s)
+        if m_dmy:
+            return f"{int(m_dmy.group(1)):02d}/{int(m_dmy.group(2)):02d}/{m_dmy.group(3)}"
+        return s
+
     # Dictionary of replacements for standard labels
     replacements = {
         "Project Name:": proj_name,
-        "Date:": date_val,
+        "Date:": normalize_date(date_val),
         "Company:": company,
         "Designed By:": designed_by,
     }

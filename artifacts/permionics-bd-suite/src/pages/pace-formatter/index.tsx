@@ -7,6 +7,20 @@ import { useToast } from "@/hooks/use-toast";
 import * as docx from "docx-preview";
 import { motion, AnimatePresence } from "framer-motion";
 
+function normalizeDateToDDMMYYYY(val: string): string {
+  if (!val || !val.trim()) return "";
+  const s = val.trim();
+  const ymd = s.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
+  const dmy = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (ymd) {
+    return `${ymd[3].padStart(2, "0")}/${ymd[2].padStart(2, "0")}/${ymd[1]}`;
+  }
+  if (dmy) {
+    return `${dmy[1].padStart(2, "0")}/${dmy[2].padStart(2, "0")}/${dmy[3]}`;
+  }
+  return s;
+}
+
 export default function PaceFormatterPage() {
   const { toast } = useToast();
   const [docxFile, setDocxFile] = useState<File | null>(null);
@@ -47,8 +61,9 @@ export default function PaceFormatterPage() {
       form.append("logo", logoFile);
     }
     
+    const normalizedDate = normalizeDateToDDMMYYYY(formData.date);
     Object.entries(formData).forEach(([key, value]) => {
-      form.append(key, value);
+      form.append(key, key === "date" ? normalizedDate : value);
     });
 
     try {
@@ -58,8 +73,21 @@ export default function PaceFormatterPage() {
         credentials: "include",
       });
 
+      if (response.status === 401) {
+        toast({
+          title: "Session Expired",
+          description: "Your session has expired. Redirecting to login...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/login";
+        }, 1200);
+        return;
+      }
+
       if (!response.ok) {
-        throw new Error("Failed to process document");
+        const errJson = await response.json().catch(() => null);
+        throw new Error(errJson?.error || "Failed to process document");
       }
 
       const blob = await response.blob();
@@ -258,8 +286,24 @@ export default function PaceFormatterPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="date" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Date</Label>
-                  <Input id="date" name="date" type="text" value={formData.date} onChange={handleInputChange} placeholder="e.g. 2025/9/8" className="h-11 rounded-xl bg-background/50 border-border/50 focus-visible:ring-primary/50" />
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="date" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Date (DD/MM/YYYY)</Label>
+                    <span className="text-[10px] text-muted-foreground">DD/MM/YYYY</span>
+                  </div>
+                  <Input 
+                    id="date" 
+                    name="date" 
+                    type="text" 
+                    value={formData.date} 
+                    onChange={handleInputChange} 
+                    onBlur={() => {
+                      if (formData.date) {
+                        setFormData(prev => ({ ...prev, date: normalizeDateToDDMMYYYY(prev.date) }));
+                      }
+                    }}
+                    placeholder="DD/MM/YYYY (e.g. 08/09/2025)" 
+                    className="h-11 rounded-xl bg-background/50 border-border/50 focus-visible:ring-primary/50" 
+                  />
                 </div>
 
                 <div className="space-y-2">

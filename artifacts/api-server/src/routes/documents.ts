@@ -32,6 +32,21 @@ router.post(
       }
 
       const { projectName, date, company, designedBy, elementModel } = req.body;
+
+      // Normalize date to DD/MM/YYYY
+      let formattedDate = "";
+      if (date && typeof date === "string" && date.trim()) {
+        const s = date.trim();
+        const ymd = s.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
+        const dmy = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+        if (ymd) {
+          formattedDate = `${ymd[3].padStart(2, "0")}/${ymd[2].padStart(2, "0")}/${ymd[1]}`;
+        } else if (dmy) {
+          formattedDate = `${dmy[1].padStart(2, "0")}/${dmy[2].padStart(2, "0")}/${dmy[3]}`;
+        } else {
+          formattedDate = s;
+        }
+      }
       
       const inputDocxPath = path.join(os.tmpdir(), `input_${Date.now()}.docx`);
       fs.renameSync(docxFile.path, inputDocxPath);
@@ -55,7 +70,7 @@ router.post(
         inputDocxPath,
         actualLogoPath,
         projectName || "",
-        date || "",
+        formattedDate,
         company || "",
         designedBy || "",
         elementModel || "",
