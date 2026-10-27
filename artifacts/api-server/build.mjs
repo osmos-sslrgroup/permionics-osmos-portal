@@ -4,6 +4,14 @@ import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
 import { rm } from "node:fs/promises";
+import { execSync } from "node:child_process";
+
+// Ensure python-docx is installed for PACE Formatter on deployment platforms like Render
+try {
+  execSync("python -m pip install --break-system-packages python-docx || python3 -m pip install --break-system-packages python-docx || pip install python-docx || true", { stdio: "ignore" });
+} catch {
+  // Gracefully continue if pip is unavailable during build
+}
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
 globalThis.require = createRequire(import.meta.url);
