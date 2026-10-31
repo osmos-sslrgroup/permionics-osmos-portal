@@ -58,10 +58,27 @@ export function modesTracingMiddleware(req: Request, res: Response, next: NextFu
 
 export function validateDeployEnvironment() {
   if (getAppMode() === "deploy") {
-    const requiredEnvVars = ["DATABASE_URL", "SESSION_SECRET"];
-    const missing = requiredEnvVars.filter((key) => !process.env[key]);
-    if (missing.length > 0) {
-      console.error(`[DEPLOY MODE ERROR] Missing required environment variables: ${missing.join(", ")}`);
+    // Known development defaults that must never be used in production.
+    const WEAK_VALUES = new Set([
+      "local_dev_secret_key_permionics_2026",
+      "permionics_local_secret_key_2026_at_least_32_chars",
+      "Permionics@2026!",
+      "Perma@digi1976",
+    ]);
+
+    const problems: string[] = [];
+    const sessionSecret = process.env["SESSION_SECRET"];
+    const adminPassword = process.env["ADMIN_PASSWORD"];
+
+    if (!process.env["DATABASE_URL"]) problems.push("DATABASE_URL is required");
+    if (!sessionSecret) problems.push("SESSION_SECRET is required");
+    else if (WEAK_VALUES.has(sessionSecret)) problems.push("SESSION_SECRET must not be a known default value");
+    if (!adminPassword) problems.push("ADMIN_PASSWORD is required");
+    else if (WEAK_VALUES.has(adminPassword)) problems.push("ADMIN_PASSWORD must not be a known default value");
+
+    if (problems.length > 0) {
+      // Fail fast: refuse to start a production server with missing or default secrets.
+      throw new Error(`[DEPLOY MODE] Refusing to start: ${problems.join("; ")}`);
     }
   }
 }

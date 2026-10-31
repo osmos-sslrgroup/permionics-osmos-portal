@@ -29,7 +29,11 @@ router.get("/questionnaires", requireAuth, async (req, res): Promise<void> => {
       return;
     }
 
-    res.json((data ?? []).map(mapRow));
+    // Never expose the legacy SYSTEM_CONFIG row (it historically held the admin password).
+    const visible = (data ?? []).filter(
+      (row: QuestionnaireRow) => row.client_name !== "SYSTEM_CONFIG"
+    );
+    res.json(visible.map(mapRow));
   } catch (err) {
     req.log.error({ err }, "List questionnaires error");
     res.status(500).json({ error: "Internal server error" });
@@ -91,7 +95,7 @@ router.get("/questionnaires/:id", requireAuth, async (req, res): Promise<void> =
       .eq("id", id)
       .single();
 
-    if (error || !data) {
+    if (error || !data || (data as QuestionnaireRow).client_name === "SYSTEM_CONFIG") {
       res.status(404).json({ error: "Questionnaire not found" });
       return;
     }
@@ -109,6 +113,18 @@ router.delete("/questionnaires/:id", requireAuth, async (req, res): Promise<void
     const id = parseInt(rawId, 10);
     if (isNaN(id)) {
       res.status(400).json({ error: "Invalid ID" });
+      return;
+    }
+
+    // Never allow deleting the legacy SYSTEM_CONFIG row via this API.
+    const { data: target } = await supabase
+      .from("questionnaires")
+      .select("client_name")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (!target || (target as { client_name: string }).client_name === "SYSTEM_CONFIG") {
+      res.status(404).json({ error: "Questionnaire not found" });
       return;
     }
 

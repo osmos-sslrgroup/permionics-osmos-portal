@@ -1,7 +1,9 @@
 import jwt from "jsonwebtoken";
 import type { Request, Response } from "express";
 
-const SESSION_SECRET = process.env["SESSION_SECRET"] || "local_dev_secret_key_permionics_2026";
+// Dev-only fallback. Production boot refuses this value (see validateDeployEnvironment in lib/modes.ts).
+const DEV_SESSION_SECRET = "local_dev_secret_key_permionics_2026";
+const SESSION_SECRET = process.env["SESSION_SECRET"] || DEV_SESSION_SECRET;
 const COOKIE_NAME = "bd_session";
 const TOKEN_EXPIRY = "7d";
 
@@ -17,22 +19,22 @@ export type SessionPayload = {
 };
 
 export async function signToken(user?: { id?: string; email?: string; role?: UserRole }): Promise<string> {
-  const adminPassword = await getAdminPassword();
   const payload = {
     authenticated: true,
     userId: user?.id || "admin-001",
-    email: user?.email || "admin@permionics.com",
+    email: user?.email || getAdminEmail(),
     role: user?.role || "admin",
   };
-  return jwt.sign(payload, SESSION_SECRET + adminPassword, {
+  // Signing key is SESSION_SECRET ALONE (never combined with the admin password),
+  // so a leaked admin password cannot be used to forge session tokens.
+  return jwt.sign(payload, SESSION_SECRET, {
     expiresIn: TOKEN_EXPIRY,
   });
 }
 
 export async function verifyToken(token: string): Promise<SessionPayload | null> {
   try {
-    const adminPassword = await getAdminPassword();
-    return jwt.verify(token, SESSION_SECRET + adminPassword) as SessionPayload;
+    return jwt.verify(token, SESSION_SECRET) as SessionPayload;
   } catch {
     return null;
   }
@@ -69,68 +71,19 @@ export function getAdminEmail(): string {
   return (process.env["ADMIN_EMAIL"] || "admin@permionics.com").toLowerCase().trim();
 }
 
-let cachedAdminPassword: string | null = null;
-
 export async function getAdminPassword(): Promise<string> {
-  if (cachedAdminPassword !== null) {
-    return cachedAdminPassword;
-  }
-
-  const { supabase } = await import("./db");
-  try {
-    const { data } = await supabase
-      .from("questionnaires")
-      .select("notes")
-      .eq("client_name", "SYSTEM_CONFIG")
-      .eq("sector", "auth")
-      .maybeSingle();
-
-    if (data && data.notes) {
-      cachedAdminPassword = data.notes;
-      return data.notes;
-    }
-  } catch (err) {
-    // Fail silently in mock mode
-  }
-
-  const fallback = process.env["ADMIN_PASSWORD"] || "Perma@digi1976";
-  cachedAdminPassword = fallback;
-  return fallback;
+  // Single source of truth: the ADMIN_PASSWORD secret. The value is NEVER persisted
+  // to the database (it was previously stored in plaintext as questionnaires.notes) and
+  // has NO hardcoded fallback. Production boot refuses a missing value (validateDeployEnvironment).
+  return process.env["ADMIN_PASSWORD"] || "";
 }
 
 export async function setAdminPassword(newPassword: string): Promise<boolean> {
-  const { supabase } = await import("./db");
-  try {
-    const { data: existing } = await supabase
-      .from("questionnaires")
-      .select("id")
-      .eq("client_name", "SYSTEM_CONFIG")
-      .eq("sector", "auth")
-      .maybeSingle();
-
-    if (existing) {
-      await supabase
-        .from("questionnaires")
-        .update({ notes: newPassword })
-        .eq("id", existing.id);
-    } else {
-      await supabase
-        .from("questionnaires")
-        .insert({
-          client_name: "SYSTEM_CONFIG",
-          sector: "auth",
-          notes: newPassword,
-          questions: [],
-          answers: {},
-        });
-    }
-
-    cachedAdminPassword = newPassword;
-    process.env["ADMIN_PASSWORD"] = newPassword;
-    return true;
-  } catch (err) {
-    return false;
-  }
+  // The durable admin credential lives in Firebase Auth (changed via the settings route).
+  // This only updates the in-process seed used by checkPassword / ensureAdminUser; it is
+  // intentionally not written to the database.
+  process.env["ADMIN_PASSWORD"] = newPassword;
+  return true;
 }
 
 export async function isAuthenticated(req: Request): Promise<boolean> {
