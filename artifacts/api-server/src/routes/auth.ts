@@ -29,22 +29,36 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     const firebaseUid = decodedToken.uid;
     const cleanEmail = String(decodedToken.email || "").toLowerCase().trim();
 
-    // Fetch user from Supabase PostgreSQL by firebase_uid
-    const { data: userByUid } = await supabase
+    // Fetch user from Supabase PostgreSQL by firebase_uid. A lookup ERROR (transient DB
+    // failure) must NOT be treated as "user absent" — otherwise the auto-provision below
+    // would overwrite an existing admin/operator row and downgrade its role to "user".
+    const { data: userByUid, error: uidErr } = await supabase
       .from("users")
       .select("*")
       .eq("firebase_uid", firebaseUid)
       .maybeSingle();
 
+    if (uidErr) {
+      req.log.error({ err: uidErr }, "User lookup by firebase_uid failed");
+      res.status(500).json({ error: "Login temporarily unavailable. Please try again." });
+      return;
+    }
+
     let user = userByUid;
 
     if (!user && cleanEmail) {
       // Fallback by email
-      const { data: userByEmail } = await supabase
+      const { data: userByEmail, error: emailErr } = await supabase
         .from("users")
         .select("*")
         .eq("email", cleanEmail)
         .maybeSingle();
+
+      if (emailErr) {
+        req.log.error({ err: emailErr }, "User lookup by email failed");
+        res.status(500).json({ error: "Login temporarily unavailable. Please try again." });
+        return;
+      }
 
       if (userByEmail) {
         await supabase.from("users").update({ firebase_uid: firebaseUid }).eq("id", userByEmail.id);
@@ -54,19 +68,18 @@ router.post("/auth/login", async (req, res): Promise<void> => {
 
     // Auto-provision if user exists in Firebase Auth but missing in PostgreSQL users table.
     // Role is ALWAYS "user" here: admin is seeded only via ensureAdminUser, never derived from email.
+    // Both lookups above succeeded with no row, so a plain insert is correct; a concurrent
+    // conflict surfaces as an error (ignored below) instead of silently downgrading a role.
     if (!user && cleanEmail) {
       const defaultRole = "user";
       const { data: newUser, error: autoErr } = await supabase
         .from("users")
-        .upsert(
-          {
-            name: decodedToken.name || cleanEmail.split("@")[0] || "User",
-            email: cleanEmail,
-            role: defaultRole,
-            firebase_uid: firebaseUid,
-          },
-          { onConflict: "email" }
-        )
+        .insert({
+          name: decodedToken.name || cleanEmail.split("@")[0] || "User",
+          email: cleanEmail,
+          role: defaultRole,
+          firebase_uid: firebaseUid,
+        })
         .select()
         .maybeSingle();
 
