@@ -279,13 +279,34 @@ router.post("/auth/operator", requireRole(["admin"]), async (req, res): Promise<
 
     if (error) {
       if (error.message?.includes("duplicate") || error.code === "23505") {
-        // If already exists in DB, update it
+        // A row with this email already exists. Never modify an admin account; otherwise
+        // promote it to operator. Preserve a pending reset when reusing an existing Firebase
+        // account (existed), and force one only for a freshly created temporary password.
+        const { data: existingRow, error: fetchErr } = await supabase
+           .from("users")
+           .select("role")
+           .eq("email", cleanEmail)
+           .maybeSingle();
+
+        if (fetchErr) {
+          res.status(500).json({ error: "Failed to look up existing account" });
+          return;
+        }
+
+        if (existingRow?.role === "admin") {
+          res.status(409).json({ error: "An admin account with this email already exists." });
+          return;
+        }
+
+        const updates: { role: string; firebase_uid: string; needs_password_reset?: boolean } = {
+          role: "operator",
+          firebase_uid: firebaseUid,
+        };
+        if (!existed) updates.needs_password_reset = true;
+
         const { data: updatedData, error: updateError } = await supabase
            .from("users")
-           .update({
-             firebase_uid: firebaseUid,
-             needs_password_reset: !existed
-           })
+           .update(updates)
            .eq("email", cleanEmail)
            .select()
            .single();
