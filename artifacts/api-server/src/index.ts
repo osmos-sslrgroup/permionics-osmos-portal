@@ -28,8 +28,9 @@ async function ensureAdminUser() {
     try {
       const fbUser = await firebaseAuth.getUserByEmail(adminEmail);
       firebaseUid = fbUser.uid;
-      await firebaseAuth.updateUser(firebaseUid, { password: adminPassword });
-      logger.info({ adminEmail }, "Firebase Admin user password updated.");
+      // Do NOT reset the password on every boot: that would silently revert an
+      // admin-initiated password change back to the seed value from ADMIN_PASSWORD.
+      logger.info({ adminEmail }, "Firebase Admin user present.");
     } catch (err: any) {
       if (err.code === "auth/user-not-found") {
         const fbUser = await firebaseAuth.createUser({
