@@ -41,6 +41,10 @@ function uploadSingle(req: Request, res: Response, next: NextFunction): void {
         res.status(400).json({ error: "File too large (max 10 MB)." });
         return;
       }
+      if (err?.code === "LIMIT_UNEXPECTED_FILE") {
+        res.status(400).json({ error: "Unexpected file field. Upload a single file using the 'file' field." });
+        return;
+      }
       next(err);
       return;
     }
