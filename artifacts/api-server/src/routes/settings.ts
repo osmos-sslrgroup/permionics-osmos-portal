@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { requireAuth } from "../middlewares/requireAuth";
 import { checkPassword, getAdminPassword, setAdminPassword } from "../lib/auth";
+import { supabase } from "../lib/db";
 
 const router: IRouter = Router();
 
@@ -119,7 +120,15 @@ router.post("/settings/change-password", requireAuth, async (req, res): Promise<
 });
 
 router.get("/settings/status", requireAuth, async (req, res): Promise<void> => {
-  const dbConnected = !!process.env["DATABASE_URL"];
+  // Actually probe the database rather than only checking that a URL is configured.
+  let dbConnected = false;
+  try {
+    const { error } = await supabase.from("users").select("id").limit(1);
+    dbConnected = !error;
+  } catch {
+    dbConnected = false;
+  }
+
   const llmConnected = !!process.env["GROQ_API_KEY"] || !!process.env["GEMINI_API_KEY"];
 
   res.json({
