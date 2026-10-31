@@ -16,7 +16,11 @@ const router: IRouter = Router();
 function mapCaseStudyRow(row: any) {
   let tags = row.tags || [];
   if (typeof tags === "string") {
-    try { tags = JSON.parse(tags); } catch { }
+    if (tags.startsWith("{") && tags.endsWith("}")) {
+      tags = tags.slice(1, -1).split(",").map((s: string) => s.replace(/^"|"$/g, "").trim()).filter(Boolean);
+    } else {
+      try { tags = JSON.parse(tags); } catch { }
+    }
   }
   let richData = row.rich_data || null;
   if (typeof richData === "string") {

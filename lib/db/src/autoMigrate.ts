@@ -131,6 +131,24 @@ export async function autoMigrate() {
         ) THEN
           ALTER TABLE case_creator_projects ADD COLUMN palette TEXT NOT NULL DEFAULT 'classic';
         END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'case_studies' 
+            AND column_name = 'tags' 
+            AND data_type IN ('json', 'jsonb')
+        ) THEN
+          ALTER TABLE case_studies ALTER COLUMN tags DROP DEFAULT;
+          ALTER TABLE case_studies ALTER COLUMN tags TYPE TEXT[] USING (
+            CASE 
+              WHEN tags IS NULL THEN '{}'::text[]
+              WHEN jsonb_typeof(tags::jsonb) = 'array' 
+              THEN ARRAY(SELECT jsonb_array_elements_text(tags::jsonb))
+              ELSE '{}'::text[]
+            END
+          );
+          ALTER TABLE case_studies ALTER COLUMN tags SET DEFAULT '{}';
+        END IF;
       END $$;
     `);
 

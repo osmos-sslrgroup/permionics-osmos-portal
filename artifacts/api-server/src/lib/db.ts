@@ -349,7 +349,7 @@ function createPostgresQueryBuilder(tableName: string) {
         let sqlQuery = "";
         let params = [...queryParams];
 
-        const JSONB_COLUMNS = new Set(["tags", "rich_data", "questions", "answers", "data"]);
+        const JSONB_COLUMNS = new Set(["rich_data", "questions", "answers", "data"]);
 
         if (action === "select") {
           const whereSql = whereConditions.length > 0 ? ` WHERE ${whereConditions.join(" AND ")}` : "";
@@ -363,6 +363,12 @@ function createPostgresQueryBuilder(tableName: string) {
             const val = row[k];
             if (val !== null && val !== undefined && JSONB_COLUMNS.has(k) && typeof val === "object") {
               return JSON.stringify(val);
+            }
+            if (k === "tags" && typeof val === "string") {
+              try {
+                const parsed = JSON.parse(val);
+                if (Array.isArray(parsed)) return parsed;
+              } catch {}
             }
             return val;
           });
@@ -381,6 +387,12 @@ function createPostgresQueryBuilder(tableName: string) {
             const val = payloadData[k];
             if (val !== null && val !== undefined && JSONB_COLUMNS.has(k) && typeof val === "object") {
               return JSON.stringify(val);
+            }
+            if (k === "tags" && typeof val === "string") {
+              try {
+                const parsed = JSON.parse(val);
+                if (Array.isArray(parsed)) return parsed;
+              } catch {}
             }
             return val;
           });
