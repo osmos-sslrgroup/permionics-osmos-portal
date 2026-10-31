@@ -56,6 +56,13 @@ router.post("/questionnaires", requireRole(["admin", "operator"]), async (req, r
       return;
     }
 
+    // SYSTEM_CONFIG is a reserved marker (legacy admin-config row). Reject it so a user
+    // cannot create a row that list/detail reads hide and delete then 404s on.
+    if (body.clientName.trim().toUpperCase() === "SYSTEM_CONFIG") {
+      res.status(400).json({ error: "clientName 'SYSTEM_CONFIG' is reserved" });
+      return;
+    }
+
     const { data, error } = await supabase
       .from("questionnaires")
       .insert({
