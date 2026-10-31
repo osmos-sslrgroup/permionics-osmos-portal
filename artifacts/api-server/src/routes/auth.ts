@@ -233,6 +233,10 @@ router.post("/auth/operator", requireRole(["admin"]), async (req, res): Promise<
 
   try {
     let firebaseUid = "";
+    // True when the email already had a Firebase account we are reusing. The operator then
+    // keeps their EXISTING password (we never overwrite it), so there is no temporary
+    // password to reset — reflected in needs_password_reset and the response below.
+    let existed = false;
     try {
       const fbUser = await firebaseAuth.createUser({
         email: cleanEmail,
@@ -246,6 +250,7 @@ router.post("/auth/operator", requireRole(["admin"]), async (req, res): Promise<
          // promoting someone to operator must not silently overwrite their credentials.
          const fbUser = await firebaseAuth.getUserByEmail(cleanEmail);
          firebaseUid = fbUser.uid;
+         existed = true;
       } else {
          throw fbErr;
       }
@@ -258,7 +263,7 @@ router.post("/auth/operator", requireRole(["admin"]), async (req, res): Promise<
         email: cleanEmail,
         role: "operator",
         firebase_uid: firebaseUid,
-        needs_password_reset: true
+        needs_password_reset: !existed
       })
       .select()
       .single();
@@ -270,21 +275,35 @@ router.post("/auth/operator", requireRole(["admin"]), async (req, res): Promise<
            .from("users")
            .update({
              firebase_uid: firebaseUid,
-             needs_password_reset: true
+             needs_password_reset: !existed
            })
            .eq("email", cleanEmail)
            .select()
            .single();
-           
+
         if (updateError) throw updateError;
-        res.status(201).json({ success: true, operator: { id: updatedData.id, email: updatedData.email, name: updatedData.name, role: updatedData.role } });
+        res.status(201).json({
+          success: true,
+          existingAccount: existed,
+          message: existed
+            ? "This email already had an account; it is now an operator and signs in with its existing password."
+            : "Operator created. They sign in with the temporary password and will be prompted to reset it.",
+          operator: { id: updatedData.id, email: updatedData.email, name: updatedData.name, role: updatedData.role },
+        });
         return;
       }
       res.status(500).json({ error: "Failed to create operator account" });
       return;
     }
 
-    res.status(201).json({ success: true, operator: { id: data.id, email: data.email, name: data.name, role: data.role } });
+    res.status(201).json({
+      success: true,
+      existingAccount: existed,
+      message: existed
+        ? "This email already had an account; it is now an operator and signs in with its existing password."
+        : "Operator created. They sign in with the temporary password and will be prompted to reset it.",
+      operator: { id: data.id, email: data.email, name: data.name, role: data.role },
+    });
   } catch (err: any) {
     res.status(500).json({ error: err?.message || "Internal server error" });
   }
