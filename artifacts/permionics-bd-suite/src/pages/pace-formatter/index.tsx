@@ -8,16 +8,16 @@ import * as docx from "docx-preview";
 import { motion, AnimatePresence } from "framer-motion";
 import { customFetch } from "@workspace/api-client-react";
 
-function normalizeDateToDDMMYYYY(val: string): string {
+function normalizeDateToMMDDYYYY(val: string): string {
   if (!val || !val.trim()) return "";
   const s = val.trim();
   const ymd = s.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
-  const dmy = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  const mdy = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
   if (ymd) {
-    return `${ymd[3].padStart(2, "0")}/${ymd[2].padStart(2, "0")}/${ymd[1]}`;
+    return `${ymd[2].padStart(2, "0")}/${ymd[3].padStart(2, "0")}/${ymd[1]}`;
   }
-  if (dmy) {
-    return `${dmy[1].padStart(2, "0")}/${dmy[2].padStart(2, "0")}/${dmy[3]}`;
+  if (mdy) {
+    return `${mdy[1].padStart(2, "0")}/${mdy[2].padStart(2, "0")}/${mdy[3]}`;
   }
   return s;
 }
@@ -62,7 +62,7 @@ export default function PaceFormatterPage() {
       form.append("logo", logoFile);
     }
     
-    const normalizedDate = normalizeDateToDDMMYYYY(formData.date);
+    const normalizedDate = normalizeDateToMMDDYYYY(formData.date);
     Object.entries(formData).forEach(([key, value]) => {
       form.append(key, key === "date" ? normalizedDate : value);
     });
@@ -271,8 +271,8 @@ export default function PaceFormatterPage() {
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="date" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Date (DD/MM/YYYY)</Label>
-                    <span className="text-[10px] text-muted-foreground">DD/MM/YYYY</span>
+                    <Label htmlFor="date" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Date (MM/DD/YYYY)</Label>
+                    <span className="text-[10px] text-muted-foreground">MM/DD/YYYY</span>
                   </div>
                   <Input 
                     id="date" 
@@ -282,10 +282,10 @@ export default function PaceFormatterPage() {
                     onChange={handleInputChange} 
                     onBlur={() => {
                       if (formData.date) {
-                        setFormData(prev => ({ ...prev, date: normalizeDateToDDMMYYYY(prev.date) }));
+                        setFormData(prev => ({ ...prev, date: normalizeDateToMMDDYYYY(prev.date) }));
                       }
                     }}
-                    placeholder="DD/MM/YYYY (e.g. 08/09/2025)" 
+                    placeholder="MM/DD/YYYY (e.g. 09/08/2025)" 
                     className="h-11 rounded-xl bg-background/50 border-border/50 focus-visible:ring-primary/50" 
                   />
                 </div>

@@ -50,16 +50,16 @@ router.post(
       const elementModel = cleanField(req.body.elementModel);
       const rawDate = req.body.date;
 
-      // Normalize date to DD/MM/YYYY
+      // Normalize date to MM/DD/YYYY
       let formattedDate = "";
       if (rawDate && typeof rawDate === "string" && rawDate.trim()) {
         const s = rawDate.trim();
         const ymd = s.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
-        const dmy = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+        const mdy = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
         if (ymd) {
-          formattedDate = `${ymd[3].padStart(2, "0")}/${ymd[2].padStart(2, "0")}/${ymd[1]}`;
-        } else if (dmy) {
-          formattedDate = `${dmy[1].padStart(2, "0")}/${dmy[2].padStart(2, "0")}/${dmy[3]}`;
+          formattedDate = `${ymd[2].padStart(2, "0")}/${ymd[3].padStart(2, "0")}/${ymd[1]}`;
+        } else if (mdy) {
+          formattedDate = `${mdy[1].padStart(2, "0")}/${mdy[2].padStart(2, "0")}/${mdy[3]}`;
         } else {
           formattedDate = cleanField(s, 40);
         }
