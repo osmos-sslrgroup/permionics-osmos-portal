@@ -31,8 +31,11 @@ function isValidMMDDYYYY(s: string): boolean {
   const day = Number(m[2]);
   const year = Number(m[3]);
   if (month < 1 || month > 12 || day < 1 || day > 31) return false;
-  const d = new Date(year, month - 1, day);
-  return d.getFullYear() === year && d.getMonth() === month - 1 && d.getDate() === day;
+  // Build via setUTCFullYear (the Date constructor and Date.UTC remap years 0-99 to 1900-1999)
+  // and read UTC getters so validation does not depend on the browser's time zone.
+  const d = new Date(0);
+  d.setUTCFullYear(year, month - 1, day);
+  return d.getUTCFullYear() === year && d.getUTCMonth() === month - 1 && d.getUTCDate() === day;
 }
 
 export default function PaceFormatterPage() {
