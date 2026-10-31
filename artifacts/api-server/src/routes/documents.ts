@@ -19,6 +19,20 @@ function cleanField(value: unknown, max = 120): string {
   return String(value ?? "").replace(/[\u0000-\u001f\u007f]/g, "").slice(0, max);
 }
 
+// Validate a MM/DD/YYYY string as a real calendar date. Defense-in-depth: the client also
+// validates, but a direct API caller must not reach the formatter with an impossible date.
+function isValidMMDDYYYY(s: string): boolean {
+  const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return false;
+  const month = Number(m[1]);
+  const day = Number(m[2]);
+  const year = Number(m[3]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return false;
+  const d = new Date(0);
+  d.setUTCFullYear(year, month - 1, day);
+  return d.getUTCFullYear() === year && d.getUTCMonth() === month - 1 && d.getUTCDate() === day;
+}
+
 router.post(
   "/documents/format-pace",
   requireRole(["admin", "operator"]),
@@ -63,6 +77,14 @@ router.post(
         } else {
           formattedDate = cleanField(s, 40);
         }
+      }
+
+      // Reject an impossible date before invoking the formatter; clean up the multer uploads.
+      if (rawDate && typeof rawDate === "string" && rawDate.trim() && !isValidMMDDYYYY(formattedDate)) {
+        fs.unlink(docxFile.path, () => {});
+        if (logoFile) fs.unlink(logoFile.path, () => {});
+        res.status(400).json({ error: "Invalid date. Use MM/DD/YYYY (for example 02/13/2025)." });
+        return;
       }
 
       const inputDocxPath = path.join(os.tmpdir(), `input_${crypto.randomUUID()}.docx`);
