@@ -355,12 +355,13 @@ function createPostgresQueryBuilder(tableName: string) {
           const whereSql = whereConditions.length > 0 ? ` WHERE ${whereConditions.join(" AND ")}` : "";
           sqlQuery = `SELECT ${selectFields} FROM ${tableName}${whereSql}${orderByClause}${limitClause}`;
         } else if (action === "insert" || action === "upsert") {
-          const row = Array.isArray(payloadData) ? payloadData[0] : payloadData;
-          const keys = Object.keys(row);
+          // Support multi-row inserts (e.g. chat saves [userMsg, assistantMsg]); previously
+          // only payloadData[0] was written, silently dropping every other row.
+          const rows = Array.isArray(payloadData) ? payloadData : [payloadData];
+          const keys = Object.keys(rows[0]);
           const cols = keys.join(", ");
-          const vals = keys.map((_, i) => `$${i + 1}`).join(", ");
-          params = keys.map((k) => {
-            const val = row[k];
+
+          const transformValue = (k: string, val: any) => {
             if (val !== null && val !== undefined && JSONB_COLUMNS.has(k) && typeof val === "object") {
               return JSON.stringify(val);
             }
@@ -371,14 +372,24 @@ function createPostgresQueryBuilder(tableName: string) {
               } catch {}
             }
             return val;
+          };
+
+          params = [];
+          const tuples = rows.map((row) => {
+            const placeholders = keys.map((k) => {
+              params.push(transformValue(k, row[k]));
+              return `$${params.length}`;
+            });
+            return `(${placeholders.join(", ")})`;
           });
+          const valuesSql = tuples.join(", ");
 
           if (action === "upsert") {
             const conflictCol = onConflictTarget || "email";
             const updateCols = keys.filter(k => k !== conflictCol).map(k => `${k} = EXCLUDED.${k}`).join(", ");
-            sqlQuery = `INSERT INTO ${tableName} (${cols}) VALUES (${vals}) ON CONFLICT (${conflictCol}) DO UPDATE SET ${updateCols} RETURNING *`;
+            sqlQuery = `INSERT INTO ${tableName} (${cols}) VALUES ${valuesSql} ON CONFLICT (${conflictCol}) DO UPDATE SET ${updateCols} RETURNING *`;
           } else {
-            sqlQuery = `INSERT INTO ${tableName} (${cols}) VALUES (${vals}) RETURNING *`;
+            sqlQuery = `INSERT INTO ${tableName} (${cols}) VALUES ${valuesSql} RETURNING *`;
           }
         } else if (action === "update") {
           const keys = Object.keys(payloadData);

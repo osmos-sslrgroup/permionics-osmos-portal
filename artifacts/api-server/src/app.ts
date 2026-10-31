@@ -148,6 +148,7 @@ app.use("/api", globalLimiter);
 app.use("/api/auth/login", authLimiter);
 app.use("/api/chat", aiLimiter);
 app.use("/api/assistant/upload", aiLimiter);
+app.use("/api/assistant/documents/:id/reprocess", aiLimiter);
 
 app.use("/api", csrfOriginCheck);
 app.use("/api", router);
