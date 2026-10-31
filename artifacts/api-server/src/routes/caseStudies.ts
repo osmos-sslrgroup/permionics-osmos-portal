@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { requireAuth } from "../middlewares/requireAuth";
+import { requireRole } from "../middlewares/requireRole";
 import { supabase } from "../lib/db";
 import { debugLog } from "../lib/modes";
 import fs from "fs";
@@ -104,7 +105,7 @@ router.get("/case-studies", requireAuth, async (req, res): Promise<void> => {
 });
 
 // Create a new library case study
-router.post("/case-studies", requireAuth, async (req, res): Promise<void> => {
+router.post("/case-studies", requireRole(["admin", "operator"]), async (req, res): Promise<void> => {
   try {
     const body = req.body;
     debugLog("API_REQ", "POST /case-studies", { clientName: body.clientName, sector: body.sector });
@@ -220,7 +221,7 @@ router.get("/case-studies/:id/download", requireAuth, async (req, res): Promise<
 });
 
 // Update a library case study
-router.put("/case-studies/:id", requireAuth, async (req, res): Promise<void> => {
+router.put("/case-studies/:id", requireRole(["admin", "operator"]), async (req, res): Promise<void> => {
   try {
     const body = req.body;
     const patch: any = { updated_at: new Date().toISOString() };
@@ -258,7 +259,7 @@ router.put("/case-studies/:id", requireAuth, async (req, res): Promise<void> => 
 });
 
 // Delete a library case study
-router.delete("/case-studies/:id", requireAuth, async (req, res): Promise<void> => {
+router.delete("/case-studies/:id", requireRole(["admin", "operator"]), async (req, res): Promise<void> => {
   try {
     const { error } = await supabase
       .from("case_studies")
@@ -304,7 +305,7 @@ router.get("/case-creator", requireAuth, async (req, res): Promise<void> => {
 });
 
 // Create a new case creator project
-router.post("/case-creator", requireAuth, async (req, res): Promise<void> => {
+router.post("/case-creator", requireRole(["admin", "operator"]), async (req, res): Promise<void> => {
   try {
     const { name, palette, data } = req.body;
 
@@ -355,7 +356,7 @@ router.get("/case-creator/:id", requireAuth, async (req, res): Promise<void> => 
 });
 
 // Update a case creator project
-router.put("/case-creator/:id", requireAuth, async (req, res): Promise<void> => {
+router.put("/case-creator/:id", requireRole(["admin", "operator"]), async (req, res): Promise<void> => {
   try {
     const { name, palette, data } = req.body;
 
@@ -385,7 +386,7 @@ router.put("/case-creator/:id", requireAuth, async (req, res): Promise<void> => 
 });
 
 // Delete a case creator project
-router.delete("/case-creator/:id", requireAuth, async (req, res): Promise<void> => {
+router.delete("/case-creator/:id", requireRole(["admin", "operator"]), async (req, res): Promise<void> => {
   try {
     const { error } = await supabase
       .from("case_creator_projects")
@@ -406,7 +407,7 @@ router.delete("/case-creator/:id", requireAuth, async (req, res): Promise<void> 
 });
 
 // Upload case study PDF directly to Case Library
-router.post("/case-studies/upload", requireAuth, upload.single("file"), async (req, res): Promise<void> => {
+router.post("/case-studies/upload", requireRole(["admin", "operator"]), upload.single("file"), async (req, res): Promise<void> => {
   if (!req.file) {
     debugLog("API_ERR", "POST /case-studies/upload - No file uploaded");
     res.status(400).json({ error: "No file uploaded" });

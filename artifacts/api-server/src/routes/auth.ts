@@ -25,7 +25,7 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   }
 
   try {
-    const decodedToken = await firebaseAuth.verifyIdToken(idToken);
+    const decodedToken = await firebaseAuth.verifyIdToken(idToken, true); // checkRevoked
     const firebaseUid = decodedToken.uid;
     const cleanEmail = String(decodedToken.email || "").toLowerCase().trim();
 
@@ -77,6 +77,11 @@ router.post("/auth/login", async (req, res): Promise<void> => {
 
     if (!user) {
       res.status(401).json({ error: "User not found in database." });
+      return;
+    }
+
+    if (user.is_blocked) {
+      res.status(403).json({ error: "Account suspended. Contact an administrator." });
       return;
     }
 
@@ -215,10 +220,10 @@ router.post("/auth/operator", requireRole(["admin"]), async (req, res): Promise<
       firebaseUid = fbUser.uid;
     } catch (fbErr: any) {
       if (fbErr.code === "auth/email-already-exists") {
+         // Reuse the existing Firebase account WITHOUT resetting its password: an admin
+         // promoting someone to operator must not silently overwrite their credentials.
          const fbUser = await firebaseAuth.getUserByEmail(cleanEmail);
          firebaseUid = fbUser.uid;
-         // Ensure password is set correctly for existing Firebase user if we are reclaiming
-         await firebaseAuth.updateUser(firebaseUid, { password });
       } else {
          throw fbErr;
       }
@@ -314,7 +319,24 @@ router.post("/auth/users/:id/block", requireRole(["admin"]), async (req, res): P
 // Admin-only: Delete user or operator
 router.delete("/auth/users/:id", requireRole(["admin"]), async (req, res): Promise<void> => {
   try {
-    const { data: user } = await supabase.from("users").select("firebase_uid").eq("id", req.params.id).single();
+    const callerId = (req as any).user?.userId;
+    if (callerId && String(callerId) === String(req.params.id)) {
+      res.status(403).json({ error: "You cannot delete your own account" });
+      return;
+    }
+
+    const { data: user } = await supabase.from("users").select("firebase_uid, role").eq("id", req.params.id).single();
+
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    if ((user as { role?: string }).role === "admin") {
+      res.status(403).json({ error: "Cannot delete an admin account" });
+      return;
+    }
+
     if (user?.firebase_uid) {
       try {
         await firebaseAuth.deleteUser(user.firebase_uid);

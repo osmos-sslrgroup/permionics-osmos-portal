@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { requireAuth } from "../middlewares/requireAuth";
+import { requireRole } from "../middlewares/requireRole";
 import { supabase, type QuestionnaireRow } from "../lib/supabase";
 
 const router: IRouter = Router();
@@ -40,7 +41,7 @@ router.get("/questionnaires", requireAuth, async (req, res): Promise<void> => {
   }
 });
 
-router.post("/questionnaires", requireAuth, async (req, res): Promise<void> => {
+router.post("/questionnaires", requireRole(["admin", "operator"]), async (req, res): Promise<void> => {
   try {
     const body = req.body as {
       clientName?: string;
@@ -107,7 +108,7 @@ router.get("/questionnaires/:id", requireAuth, async (req, res): Promise<void> =
   }
 });
 
-router.delete("/questionnaires/:id", requireAuth, async (req, res): Promise<void> => {
+router.delete("/questionnaires/:id", requireRole(["admin", "operator"]), async (req, res): Promise<void> => {
   try {
     const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const id = parseInt(rawId, 10);

@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import multer from "multer";
 import { requireAuth } from "../middlewares/requireAuth";
+import { requireRole } from "../middlewares/requireRole";
 import { supabase } from "../lib/db";
 import fs from "fs";
 import os from "os";
@@ -128,7 +129,7 @@ async function extractDocumentText(filePath: string, filename: string): Promise<
 
 // ── Upload route ──────────────────────────────────────────────────────────────
 
-router.post("/assistant/upload", requireAuth, upload.single("file"), async (req, res): Promise<void> => {
+router.post("/assistant/upload", requireRole(["admin", "operator"]), upload.single("file"), async (req, res): Promise<void> => {
   if (!req.file) {
     res.status(400).json({ error: "No file uploaded" });
     return;
@@ -168,7 +169,7 @@ router.post("/assistant/upload", requireAuth, upload.single("file"), async (req,
 // ── Reprocess route: re-OCR an existing empty document ───────────────────────
 // POST /api/assistant/documents/:id/reprocess  (with the file as multipart form)
 
-router.post("/assistant/documents/:id/reprocess", requireAuth, upload.single("file"), async (req, res): Promise<void> => {
+router.post("/assistant/documents/:id/reprocess", requireRole(["admin", "operator"]), upload.single("file"), async (req, res): Promise<void> => {
   if (!req.file) {
     res.status(400).json({ error: "No file uploaded" });
     return;
@@ -237,7 +238,7 @@ router.get("/assistant/documents", requireAuth, async (req, res): Promise<void> 
 
 // ── Delete document ───────────────────────────────────────────────────────────
 
-router.delete("/assistant/documents/:id", requireAuth, async (req, res): Promise<void> => {
+router.delete("/assistant/documents/:id", requireRole(["admin", "operator"]), async (req, res): Promise<void> => {
   try {
     const { error } = await supabase
       .from("assistant_documents")

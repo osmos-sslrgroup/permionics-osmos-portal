@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { requireAuth } from "../middlewares/requireAuth";
+import { requireRole } from "../middlewares/requireRole";
 import { supabase } from "../lib/db";
 import { debugLog } from "../lib/modes";
 import Groq from "groq-sdk";
@@ -443,7 +444,7 @@ router.get("/chat/history", requireAuth, async (req, res): Promise<void> => {
   }
 });
 
-router.delete("/chat/history", requireAuth, async (req, res): Promise<void> => {
+router.delete("/chat/history", requireRole(["admin"]), async (req, res): Promise<void> => {
   try {
     const { error } = await supabase
       .from("chats")
