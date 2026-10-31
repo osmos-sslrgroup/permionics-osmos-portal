@@ -30,13 +30,18 @@ const upload = multer({
 function uploadSingle(req: Request, res: Response, next: NextFunction): void {
   upload.single("file")(req, res, (err: any) => {
     if (err) {
-      const msg =
-        err?.message === "UNSUPPORTED_FILE_TYPE"
-          ? "Unsupported file type. Allowed: JPEG, PNG, WebP, PDF."
-          : err?.code === "LIMIT_FILE_SIZE"
-            ? "File too large (max 10 MB)."
-            : "Upload failed.";
-      res.status(400).json({ error: msg });
+      // Only genuine client errors (rejected type / oversize) are 400s. A storage/write
+      // failure is a server error: pass it to the error handler instead of a 400, which the
+      // frontend would otherwise treat as "rejected" and silently store as a data URL.
+      if (err?.message === "UNSUPPORTED_FILE_TYPE") {
+        res.status(400).json({ error: "Unsupported file type. Allowed: JPEG, PNG, WebP, PDF." });
+        return;
+      }
+      if (err?.code === "LIMIT_FILE_SIZE") {
+        res.status(400).json({ error: "File too large (max 10 MB)." });
+        return;
+      }
+      next(err);
       return;
     }
     next();
