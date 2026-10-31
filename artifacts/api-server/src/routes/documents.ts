@@ -1,26 +1,39 @@
 import { Router, type IRouter } from "express";
-import { requireAuth } from "../middlewares/requireAuth";
+import { requireRole } from "../middlewares/requireRole";
 import multer from "multer";
 import os from "os";
 import path from "path";
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import util from "util";
+import crypto from "crypto";
 import fs from "fs";
-import AdmZip from "adm-zip";
 
-const execAsync = util.promisify(exec);
+const execFileAsync = util.promisify(execFile);
 const router: IRouter = Router();
 
 const upload = multer({ dest: os.tmpdir() });
 
+// Strip control characters and cap length. Values are passed to python via execFile
+// (argument array, no shell), so this is defense-in-depth rather than the primary guard.
+function cleanField(value: unknown, max = 120): string {
+  return String(value ?? "").replace(/[\u0000-\u001f\u007f]/g, "").slice(0, max);
+}
+
 router.post(
   "/documents/format-pace",
-  requireAuth,
+  requireRole(["admin", "operator"]),
   upload.fields([
     { name: "docx", maxCount: 1 },
     { name: "logo", maxCount: 1 }
   ]),
   async (req, res): Promise<void> => {
+    const tempPaths: string[] = [];
+    const cleanupTemps = () => {
+      for (const p of tempPaths) {
+        fs.unlink(p, () => {});
+      }
+    };
+
     try {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
       const docxFile = files["docx"]?.[0];
@@ -31,12 +44,16 @@ router.post(
         return;
       }
 
-      const { projectName, date, company, designedBy, elementModel } = req.body;
+      const projectName = cleanField(req.body.projectName);
+      const company = cleanField(req.body.company);
+      const designedBy = cleanField(req.body.designedBy);
+      const elementModel = cleanField(req.body.elementModel);
+      const rawDate = req.body.date;
 
       // Normalize date to DD/MM/YYYY
       let formattedDate = "";
-      if (date && typeof date === "string" && date.trim()) {
-        const s = date.trim();
+      if (rawDate && typeof rawDate === "string" && rawDate.trim()) {
+        const s = rawDate.trim();
         const ymd = s.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
         const dmy = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
         if (ymd) {
@@ -44,72 +61,70 @@ router.post(
         } else if (dmy) {
           formattedDate = `${dmy[1].padStart(2, "0")}/${dmy[2].padStart(2, "0")}/${dmy[3]}`;
         } else {
-          formattedDate = s;
+          formattedDate = cleanField(s, 40);
         }
       }
-      
-      const inputDocxPath = path.join(os.tmpdir(), `input_${Date.now()}.docx`);
+
+      const inputDocxPath = path.join(os.tmpdir(), `input_${crypto.randomUUID()}.docx`);
       fs.renameSync(docxFile.path, inputDocxPath);
+      tempPaths.push(inputDocxPath);
 
       let actualLogoPath = "dummy_logo";
       if (logoFile) {
-        // Extract extension from originalname (e.g. .png, .jpg)
         const ext = path.extname(logoFile.originalname) || ".png";
-        actualLogoPath = path.join(os.tmpdir(), `logo_${Date.now()}${ext}`);
+        actualLogoPath = path.join(os.tmpdir(), `logo_${crypto.randomUUID()}${ext}`);
         fs.renameSync(logoFile.path, actualLogoPath);
+        tempPaths.push(actualLogoPath);
       }
 
-      const pyOutputPath = path.join(os.tmpdir(), `py_out_${Date.now()}.docx`);
-      const finalOutputPath = pyOutputPath; // We will use the output directly
-      
+      const pyOutputPath = path.join(os.tmpdir(), `py_out_${crypto.randomUUID()}.docx`);
+      tempPaths.push(pyOutputPath);
+
       const pythonScriptPath = path.join(process.cwd(), "src", "lib", "formatter.py");
-      
-      // 1. Run Python script to replace text and logo
-      // We pass the args safely
-      const args = [
+
+      // Run the formatter via execFile with an ARGUMENT ARRAY (no shell): user-supplied
+      // fields can never be interpreted as shell syntax (fixes the command-injection hole).
+      await execFileAsync("python", [
+        pythonScriptPath,
         inputDocxPath,
         actualLogoPath,
-        projectName || "",
+        projectName,
         formattedDate,
-        company || "",
-        designedBy || "",
-        elementModel || "",
-        pyOutputPath
-      ].map(arg => `"${String(arg).replace(/"/g, '\\"')}"`).join(" ");
-      
-      await execAsync(`python "${pythonScriptPath}" ${args}`);
-      
-      // 2. Send final file back (or convert to PDF if requested)
-      const wantPdf = req.query.pdf === "true";
-      
-      if (wantPdf) {
-        const pyOutputPdf = path.join(os.tmpdir(), `final_out_${Date.now()}.pdf`);
-        // Use docx2pdf to convert the docx to pdf
-        const docx2pdfScript = `python -c "from docx2pdf import convert; convert('${finalOutputPath.replace(/\\/g, '\\\\')}', '${pyOutputPdf.replace(/\\/g, '\\\\')}')"`;
-        try {
-            await execAsync(docx2pdfScript);
-            res.download(pyOutputPdf, "Formatted_Projection.pdf", (err) => {
-              fs.unlink(inputDocxPath, () => {});
-              fs.unlink(pyOutputPath, () => {});
-              fs.unlink(pyOutputPdf, () => {});
-              if (actualLogoPath !== "dummy_logo") fs.unlink(actualLogoPath, () => {});
-            });
-        } catch (pdfErr) {
-            req.log.error({ err: pdfErr }, "Failed to convert DOCX to PDF");
-            res.status(500).json({ error: "Failed to generate PDF" });
-        }
-      } else {
-        res.download(finalOutputPath, "Formatted_Projection.docx", (err) => {
-          // Cleanup temp files
-          fs.unlink(inputDocxPath, () => {});
-          fs.unlink(pyOutputPath, () => {});
-          if (actualLogoPath !== "dummy_logo") fs.unlink(actualLogoPath, () => {});
-        });
-      }
+        company,
+        designedBy,
+        elementModel,
+        pyOutputPath,
+      ]);
 
+      const wantPdf = req.query.pdf === "true";
+
+      if (wantPdf) {
+        const pyOutputPdf = path.join(os.tmpdir(), `final_out_${crypto.randomUUID()}.pdf`);
+        tempPaths.push(pyOutputPdf);
+        try {
+          // Pass paths as argv to a fixed program; no interpolation into the code string.
+          await execFileAsync("python", [
+            "-c",
+            "import sys\nfrom docx2pdf import convert\nconvert(sys.argv[1], sys.argv[2])",
+            pyOutputPath,
+            pyOutputPdf,
+          ]);
+        } catch (pdfErr) {
+          req.log.error({ err: pdfErr }, "Failed to convert DOCX to PDF");
+          cleanupTemps();
+          res.status(500).json({ error: "Failed to generate PDF" });
+          return;
+        }
+        res.download(pyOutputPdf, "Formatted_Projection.pdf", () => cleanupTemps());
+      } else {
+        res.download(pyOutputPath, "Formatted_Projection.docx", () => cleanupTemps());
+      }
     } catch (error: any) {
       req.log.error({ err: error }, "Failed to format DOCX");
-      res.status(500).json({ error: "Internal Server Error" });
+      cleanupTemps();
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Internal Server Error" });
+      }
     }
   }
 );

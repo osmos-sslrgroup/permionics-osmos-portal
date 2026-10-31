@@ -1,18 +1,29 @@
 import sys
 
-try:
-    from docx import Document
-    from docx.shared import Inches
-except ModuleNotFoundError:
-    import subprocess
-    try:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "--break-system-packages", "python-docx"])
-        from docx import Document
-        from docx.shared import Inches
-    except Exception:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "python-docx"])
-        from docx import Document
-        from docx.shared import Inches
+# python-docx is installed at build time (see artifacts/api-server/build.mjs and
+# requirements.txt). We intentionally do NOT pip install at runtime/import.
+from docx import Document
+from docx.shared import Inches
+
+
+def set_para_text(paragraph, new_text):
+    """Replace a paragraph's text while preserving the first run's formatting."""
+    if paragraph.runs:
+        paragraph.runs[0].text = new_text
+        for run in paragraph.runs[1:]:
+            run.text = ""
+    else:
+        paragraph.add_run(new_text)
+
+
+def set_cell_text(cell, new_text):
+    """Replace a table cell's text while preserving the first run's formatting."""
+    set_para_text(cell.paragraphs[0], new_text)
+    # Blank out any additional paragraphs' runs without deleting the paragraphs.
+    for extra in cell.paragraphs[1:]:
+        for run in extra.runs:
+            run.text = ""
+
 
 def main():
     if len(sys.argv) < 9:
@@ -63,11 +74,11 @@ def main():
         for row in table.rows:
             for i, cell in enumerate(row.cells):
                 text = cell.text.strip()
-                
+
                 # Remove "Change Your Design" watermark
                 if "Change Your Design" in text:
-                    cell.text = text.replace("Change Your Design", "")
-                
+                    set_cell_text(cell, text.replace("Change Your Design", ""))
+
                 # Check for Element Model row to extract all old models across all columns
                 if text in ["Element Model", "Elements Model"]:
                     # Iterate through all remaining cells in this row
@@ -76,14 +87,14 @@ def main():
                         if old_model_text and old_model_text not in ["", "N/A", "None"]:
                             old_models.add(old_model_text)
                             if element_model:
-                                row.cells[j].text = element_model
-                
+                                set_cell_text(row.cells[j], element_model)
+
                 # Check for standard label replacements (where the value is in the next cell)
                 for label, new_value in replacements.items():
                     if label in text:
                         if len(text) <= len(label) + 2:
                             if i + 1 < len(row.cells) and new_value:
-                                row.cells[i+1].text = new_value
+                                set_cell_text(row.cells[i + 1], new_value)
 
     # 2. Second Pass: Globally replace the old element models in all other tables (e.g. Table 3)
     if element_model and old_models:
@@ -92,20 +103,20 @@ def main():
                 for cell in row.cells:
                     # Exact match replacement
                     if cell.text.strip() in old_models:
-                        cell.text = element_model
+                        set_cell_text(cell, element_model)
 
     # 3. Handle paragraph-level text ("Change Your Design" and inline labels)
     for p in doc.paragraphs:
         if "Change Your Design" in p.text:
-            p.text = p.text.replace("Change Your Design", "")
-            
+            set_para_text(p, p.text.replace("Change Your Design", ""))
+
         for label, new_value in replacements.items():
             if label in p.text and new_value:
                 # E.g. "Project Name: OldVal" -> "Project Name: NewVal"
                 if p.text.strip().startswith(label):
-                    p.text = f"{label} {new_value}"
+                    set_para_text(p, f"{label} {new_value}")
 
-    # 3. Replace Header Logo
+    # 4. Replace Header Logo
     if logo_path and logo_path != "dummy_logo":
         try:
             # We add logo to the first section header
@@ -113,10 +124,10 @@ def main():
             # Clear existing paragraphs (this removes old text/logos in the header)
             for p in header.paragraphs:
                 p.clear()
-            
+
             if len(header.paragraphs) == 0:
                 header.add_paragraph()
-                
+
             run = header.paragraphs[0].add_run()
             run.add_picture(logo_path, width=Inches(1.5))
         except Exception as e:
@@ -124,6 +135,7 @@ def main():
 
     doc.save(output_docx)
     print("SUCCESS")
+
 
 if __name__ == "__main__":
     main()
