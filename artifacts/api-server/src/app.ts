@@ -6,6 +6,7 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 import caseStudiesRoutes from "./routes/caseStudies";
 import { modesTracingMiddleware, validateDeployEnvironment } from "./lib/modes";
+import { migrationReady } from "./lib/db";
 
 validateDeployEnvironment();
 
@@ -149,6 +150,13 @@ app.use("/api/auth/login", authLimiter);
 app.use("/api/chat", aiLimiter);
 app.use("/api/assistant/upload", aiLimiter);
 app.use("/api/assistant/documents/:id/reprocess", aiLimiter);
+
+// Hold API requests until the schema migration has resolved. After it resolves once,
+// awaiting the settled promise is effectively free.
+app.use("/api", async (_req: Request, _res: Response, next: NextFunction) => {
+  await migrationReady;
+  next();
+});
 
 app.use("/api", csrfOriginCheck);
 app.use("/api", router);

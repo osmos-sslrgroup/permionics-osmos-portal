@@ -4,11 +4,19 @@ import { debugLog } from "./modes";
 
 const isPostgresConfigured = Boolean(process.env.DATABASE_URL);
 
+// Resolves when the DB schema is ready. The app awaits this before serving requests so
+// nothing can hit the database before autoMigrate() has created/updated the schema.
+export let migrationReady: Promise<void> = Promise.resolve();
+
 if (isPostgresConfigured) {
   console.log("==========================================================================");
   console.log("🐘 NOTICE: DATABASE_URL provided. Running in STANDARD POSTGRESQL Mode.");
   console.log("==========================================================================");
-  autoMigrate().catch((err) => console.error("[AUTO_MIGRATE FAILED]", err));
+  migrationReady = autoMigrate()
+    .then(() => undefined)
+    .catch((err) => {
+      console.error("[AUTO_MIGRATE FAILED]", err);
+    });
 } else {
   console.log("==========================================================================");
   console.log("ℹ️  NOTICE: DATABASE_URL not provided.");
@@ -265,6 +273,16 @@ function createMockQueryBuilder(tableName: string) {
 }
 
 function createPostgresQueryBuilder(tableName: string) {
+  // Guard every interpolated SQL identifier. Values are always passed as $-parameters,
+  // but table/column names cannot be parameterized, so they must match a strict pattern.
+  const assertIdent = (name: string): string => {
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+      throw new Error(`Unsafe SQL identifier: ${name}`);
+    }
+    return name;
+  };
+  assertIdent(tableName);
+
   let selectFields = "*";
   let isSingle = false;
   let isCount = false;
@@ -290,17 +308,17 @@ function createPostgresQueryBuilder(tableName: string) {
     },
     eq(field: string, value: any) {
       queryParams.push(value);
-      whereConditions.push(`${field} = $${queryParams.length}`);
+      whereConditions.push(`${assertIdent(field)} = $${queryParams.length}`);
       return builder;
     },
     neq(field: string, value: any) {
       queryParams.push(value);
-      whereConditions.push(`${field} != $${queryParams.length}`);
+      whereConditions.push(`${assertIdent(field)} != $${queryParams.length}`);
       return builder;
     },
     ilike(field: string, pattern: string) {
       queryParams.push(pattern);
-      whereConditions.push(`${field} ILIKE $${queryParams.length}`);
+      whereConditions.push(`${assertIdent(field)} ILIKE $${queryParams.length}`);
       return builder;
     },
     or(filterString: string) {
@@ -308,7 +326,7 @@ function createPostgresQueryBuilder(tableName: string) {
     },
     order(field: string, options?: { ascending?: boolean }) {
       const asc = options?.ascending ?? true;
-      orderByClause = ` ORDER BY ${field} ${asc ? "ASC" : "DESC"}`;
+      orderByClause = ` ORDER BY ${assertIdent(field)} ${asc ? "ASC" : "DESC"}`;
       return builder;
     },
     limit(n: number) {
@@ -346,6 +364,11 @@ function createPostgresQueryBuilder(tableName: string) {
     },
     async then(onfulfilled?: (value: any) => any, onrejected?: (reason: any) => any) {
       try {
+        // Never allow an UPDATE/DELETE without a WHERE clause (would hit the whole table).
+        if ((action === "update" || action === "delete") && whereConditions.length === 0) {
+          throw new Error(`Refusing to ${action} all rows of ${tableName} without a WHERE clause`);
+        }
+
         let sqlQuery = "";
         let params = [...queryParams];
 
@@ -359,6 +382,7 @@ function createPostgresQueryBuilder(tableName: string) {
           // only payloadData[0] was written, silently dropping every other row.
           const rows = Array.isArray(payloadData) ? payloadData : [payloadData];
           const keys = Object.keys(rows[0]);
+          keys.forEach(assertIdent);
           const cols = keys.join(", ");
 
           const transformValue = (k: string, val: any) => {
@@ -393,6 +417,7 @@ function createPostgresQueryBuilder(tableName: string) {
           }
         } else if (action === "update") {
           const keys = Object.keys(payloadData);
+          keys.forEach(assertIdent);
           const setClause = keys.map((k, i) => `${k} = $${i + 1}`).join(", ");
           params = keys.map((k) => {
             const val = payloadData[k];
