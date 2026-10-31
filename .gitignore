@@ -62,6 +62,7 @@ local
 GEMINI-*.md
 firebase-debug.log
 emulator-data/public/uploads/
+scratch/
 
 # Generated PDFs — do not commit
 artifacts/api-server/pdfs/
