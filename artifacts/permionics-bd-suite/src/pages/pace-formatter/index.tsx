@@ -68,7 +68,19 @@ export default function PaceFormatterPage() {
 
   const handleSubmit = async () => {
     if (!docxFile) return;
-    
+
+    // Validate the date BEFORE touching processing state or clearing the current preview,
+    // so an invalid date does not wipe an already-generated document.
+    const normalizedDate = normalizeDateToMMDDYYYY(formData.date);
+    if (formData.date.trim() && !isValidMMDDYYYY(normalizedDate)) {
+      toast({
+        title: "Invalid date",
+        description: "Enter a real date in MM/DD/YYYY format (for example 02/13/2025).",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsProcessing(true);
     setProcessedBlob(null);
 
@@ -77,17 +89,7 @@ export default function PaceFormatterPage() {
     if (logoFile) {
       form.append("logo", logoFile);
     }
-    
-    const normalizedDate = normalizeDateToMMDDYYYY(formData.date);
-    if (formData.date.trim() && !isValidMMDDYYYY(normalizedDate)) {
-      toast({
-        title: "Invalid date",
-        description: "Enter a real date in MM/DD/YYYY format (for example 02/13/2025).",
-        variant: "destructive",
-      });
-      setIsProcessing(false);
-      return;
-    }
+
     Object.entries(formData).forEach(([key, value]) => {
       form.append(key, key === "date" ? normalizedDate : value);
     });
