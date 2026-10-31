@@ -87,6 +87,10 @@ export function validateDeployEnvironment() {
     if (!adminPassword) problems.push("ADMIN_PASSWORD is required");
     else if (WEAK_VALUES.has(adminPassword)) problems.push("ADMIN_PASSWORD must not be a known default value");
 
+    // Without CORS_ORIGIN, a separate-origin frontend (e.g. Vercel) gets no CORS headers and
+    // every mutating request 403s. Fail fast at boot rather than ship a silently broken UI.
+    if (!process.env["CORS_ORIGIN"]) problems.push("CORS_ORIGIN is required (exact frontend origin)");
+
     if (problems.length > 0) {
       // Fail fast: refuse to start a production server with missing or default secrets.
       throw new Error(`[DEPLOY MODE] Refusing to start: ${problems.join("; ")}`);
