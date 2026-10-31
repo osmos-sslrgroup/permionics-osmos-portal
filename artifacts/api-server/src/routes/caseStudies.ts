@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { requireAuth } from "../middlewares/requireAuth";
 import { requireRole } from "../middlewares/requireRole";
+import { CreateCaseStudyBody } from "@workspace/api-zod";
 import { supabase } from "../lib/db";
 import { debugLog } from "../lib/modes";
 import fs from "fs";
@@ -107,6 +108,11 @@ router.get("/case-studies", requireAuth, async (req, res): Promise<void> => {
 // Create a new library case study
 router.post("/case-studies", requireRole(["admin", "operator"]), async (req, res): Promise<void> => {
   try {
+    const parsed = CreateCaseStudyBody.pick({ clientName: true, sector: true }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "clientName and sector are required" });
+      return;
+    }
     const body = req.body;
     debugLog("API_REQ", "POST /case-studies", { clientName: body.clientName, sector: body.sector });
     const insertData = {

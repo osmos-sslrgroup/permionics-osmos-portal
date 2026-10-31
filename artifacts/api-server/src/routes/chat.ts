@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { requireAuth } from "../middlewares/requireAuth";
 import { requireRole } from "../middlewares/requireRole";
+import { SendChatMessageBody } from "@workspace/api-zod";
 import { supabase } from "../lib/db";
 import { debugLog } from "../lib/modes";
 import Groq from "groq-sdk";
@@ -221,13 +222,15 @@ async function getChatData() {
 
 router.post("/chat", requireAuth, async (req, res): Promise<void> => {
   try {
-    const { message, history = [] } = req.body;
-    debugLog("CHAT_REQ", "Received chat message", { message, historySize: history.length });
-
-    if (!message) {
-      res.status(400).json({ error: "Message is required" });
+    const parsed = SendChatMessageBody.pick({ message: true }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Message is required and must be a non-empty string" });
       return;
     }
+    const message: string = parsed.data.message;
+    const history = Array.isArray(req.body?.history) ? req.body.history : [];
+
+    debugLog("CHAT_REQ", "Received chat message", { message, historySize: history.length });
 
     // Extract meaningful search terms, preserving 2-letter technical acronyms like RO, NF, UF, pH, MB
     const searchTerms = message

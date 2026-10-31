@@ -290,7 +290,12 @@ router.get("/auth/users", requireRole(["admin"]), async (_req, res): Promise<voi
 // Admin-only: Toggle block status for user or operator
 router.post("/auth/users/:id/block", requireRole(["admin"]), async (req, res): Promise<void> => {
   const { blocked } = req.body;
-  
+
+  if (typeof blocked !== "boolean") {
+    res.status(400).json({ error: "blocked must be a boolean" });
+    return;
+  }
+
   try {
     const { data: user, error: fetchErr } = await supabase.from("users").select("firebase_uid, role").eq("id", req.params.id).single();
     if (fetchErr || !user) {
