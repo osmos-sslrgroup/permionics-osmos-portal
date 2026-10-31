@@ -169,6 +169,15 @@ router.post("/auth/signup", async (req, res): Promise<void> => {
 
     if (dbErr || !dbUser) {
       req.log.error({ dbErr }, "Database insert error during signup");
+      // The Firebase account was created but the DB row failed. Remove the orphaned
+      // Firebase account so a retry is not permanently blocked by auth/email-already-exists.
+      try {
+        await firebaseAuth.deleteUser(firebaseUid);
+      } catch (cleanupErr: any) {
+        if (cleanupErr?.code !== "auth/user-not-found") {
+          req.log.warn({ cleanupErr }, "Failed to delete orphaned Firebase user after signup DB failure");
+        }
+      }
       res.status(500).json({ error: "Failed to sync user account to database" });
       return;
     }
