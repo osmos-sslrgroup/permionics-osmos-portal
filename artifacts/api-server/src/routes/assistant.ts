@@ -6,10 +6,7 @@ import { supabase } from "../lib/db";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { createRequire } from "module";
 import { GoogleGenAI } from "@google/genai";
-
-const require = createRequire(import.meta.url);
 
 const router: IRouter = Router();
 const upload = multer({ dest: os.tmpdir() });
@@ -24,9 +21,13 @@ const ai = new GoogleGenAI({ apiKey: geminiKey || "placeholder" });
 
 async function extractTextWithPdfParse(filePath: string): Promise<string> {
   try {
-    const pdfParse = require("pdf-parse");
+    // pdf-parse v2 exposes a PDFParse class (same usage as routes/caseStudies.ts).
+    // Calling the module as a function (v1 style) throws under v2 and silently yields "",
+    // which pushed every text PDF to Gemini OCR or the "needs key" placeholder.
+    const { PDFParse } = await import("pdf-parse");
     const dataBuffer = fs.readFileSync(filePath);
-    const result = await pdfParse(dataBuffer);
+    const parser = new (PDFParse as any)({ data: dataBuffer });
+    const result = await parser.getText();
     return (result.text || "").trim();
   } catch (err) {
     return "";
