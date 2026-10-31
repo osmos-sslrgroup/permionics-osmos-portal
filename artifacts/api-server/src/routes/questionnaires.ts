@@ -125,11 +125,18 @@ router.delete("/questionnaires/:id", requireRole(["admin", "operator"]), async (
     }
 
     // Never allow deleting the legacy SYSTEM_CONFIG row via this API.
-    const { data: target } = await supabase
+    const { data: target, error: lookupErr } = await supabase
       .from("questionnaires")
       .select("client_name")
       .eq("id", id)
       .maybeSingle();
+
+    // A lookup error is a server failure, not a missing row — don't mask it as 404.
+    if (lookupErr) {
+      req.log.error({ err: lookupErr }, "Failed to look up questionnaire before delete");
+      res.status(500).json({ error: "Database error" });
+      return;
+    }
 
     if (!target || (target as { client_name: string }).client_name === "SYSTEM_CONFIG") {
       res.status(404).json({ error: "Questionnaire not found" });
