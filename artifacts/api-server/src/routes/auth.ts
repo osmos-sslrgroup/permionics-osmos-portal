@@ -85,6 +85,15 @@ router.post("/auth/login", async (req, res): Promise<void> => {
 
       if (!autoErr && newUser) {
         user = newUser;
+      } else if (autoErr) {
+        // A concurrent login may have inserted the row first (unique conflict). Re-fetch by
+        // firebase_uid and use that row instead of falling through to "User not found".
+        const { data: raced } = await supabase
+          .from("users")
+          .select("*")
+          .eq("firebase_uid", firebaseUid)
+          .maybeSingle();
+        if (raced) user = raced;
       }
     }
 
