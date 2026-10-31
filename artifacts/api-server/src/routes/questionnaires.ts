@@ -51,7 +51,12 @@ router.post("/questionnaires", requireRole(["admin", "operator"]), async (req, r
       notes?: string | null;
     };
 
-    if (!body.clientName || !body.sector) {
+    if (
+      typeof body.clientName !== "string" ||
+      typeof body.sector !== "string" ||
+      !body.clientName.trim() ||
+      !body.sector.trim()
+    ) {
       res.status(400).json({ error: "clientName and sector are required" });
       return;
     }
