@@ -138,16 +138,17 @@ export async function autoMigrate() {
             AND column_name = 'tags' 
             AND data_type IN ('json', 'jsonb')
         ) THEN
-          ALTER TABLE case_studies ALTER COLUMN tags DROP DEFAULT;
-          ALTER TABLE case_studies ALTER COLUMN tags TYPE TEXT[] USING (
-            CASE 
-              WHEN tags IS NULL THEN '{}'::text[]
-              WHEN jsonb_typeof(tags::jsonb) = 'array' 
-              THEN ARRAY(SELECT jsonb_array_elements_text(tags::jsonb))
-              ELSE '{}'::text[]
-            END
-          );
-          ALTER TABLE case_studies ALTER COLUMN tags SET DEFAULT '{}';
+          ALTER TABLE case_studies DROP COLUMN IF EXISTS tags_migrated;
+          ALTER TABLE case_studies ADD COLUMN tags_migrated TEXT[] NOT NULL DEFAULT '{}';
+          UPDATE case_studies 
+          SET tags_migrated = CASE 
+            WHEN tags IS NULL THEN '{}'::text[]
+            WHEN jsonb_typeof(tags::jsonb) = 'array' 
+            THEN ARRAY(SELECT jsonb_array_elements_text(tags::jsonb))
+            ELSE '{}'::text[]
+          END;
+          ALTER TABLE case_studies DROP COLUMN tags;
+          ALTER TABLE case_studies RENAME COLUMN tags_migrated TO tags;
         END IF;
       END $$;
     `);
