@@ -416,7 +416,9 @@ function createPostgresQueryBuilder(tableName: string) {
           sqlQuery = `DELETE FROM ${tableName}${whereSql} RETURNING *`;
         }
 
-        debugLog("PG_SQL", sqlQuery, params);
+        // Log the SQL text and parameter count only; parameter VALUES can contain
+        // passwords, tokens and personal data and must never be written to logs.
+        debugLog("PG_SQL", sqlQuery, { paramCount: params.length });
         const res = await pool.query(sqlQuery, params);
         let resultData = res.rows;
         if (isSingle) {

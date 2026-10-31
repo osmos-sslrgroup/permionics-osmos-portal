@@ -9,21 +9,30 @@ export function getAppMode(): AppMode {
   return "debug";
 }
 
+// Redact any field whose KEY looks sensitive, at any depth (covers objects and the
+// elements/fields reached while walking arrays). Matches password, currentPassword,
+// newPassword, token, idToken, secret, service_key, apiKey, credentials, authorization, etc.
+const SECRET_KEY_RE = /pass|token|secret|key|cred|auth/i;
+
+function redactSecrets(data: any): any {
+  return JSON.parse(
+    JSON.stringify(data, (key, value) => {
+      if (key && SECRET_KEY_RE.test(key)) return "[REDACTED]";
+      return value;
+    })
+  );
+}
+
 export function debugLog(tag: string, message: string, data?: any) {
   if (getAppMode() === "debug") {
     const timestamp = new Date().toISOString();
     console.log(`[DEBUG TRACE ${timestamp}] [${tag}] ${message}`);
     if (data !== undefined) {
-      // Redact sensitive keys if present
-      const sanitizedData = JSON.parse(
-        JSON.stringify(data, (key, value) => {
-          if (["password", "token", "service_key", "secret"].includes(key.toLowerCase())) {
-            return "[REDACTED]";
-          }
-          return value;
-        })
-      );
-      console.log(JSON.stringify(sanitizedData, null, 2));
+      try {
+        console.log(JSON.stringify(redactSecrets(data), null, 2));
+      } catch {
+        /* ignore non-serializable data */
+      }
     }
   }
 }
@@ -37,10 +46,12 @@ export function modesTracingMiddleware(req: Request, res: Response, next: NextFu
     const requestId = Math.random().toString(36).substring(2, 9);
     (req as any).requestId = requestId;
 
+    // Never log request bodies for auth/settings routes (credentials, tokens).
+    const sensitiveRoute = /\/auth\/|\/settings\//.test(req.originalUrl || "");
     debugLog("HTTP_IN", `${req.method} ${req.originalUrl} [ReqID: ${requestId}]`, {
       params: req.params,
       query: req.query,
-      body: req.body,
+      body: sensitiveRoute ? "[omitted]" : req.body,
       headers: {
         "user-agent": req.headers["user-agent"],
         "content-type": req.headers["content-type"],
