@@ -91,6 +91,12 @@ export function validateDeployEnvironment() {
     // every mutating request 403s. Fail fast at boot rather than ship a silently broken UI.
     if (!process.env["CORS_ORIGIN"]) problems.push("CORS_ORIGIN is required (exact frontend origin)");
 
+    // The Identity Toolkit current-password check needs a Firebase Web API key, or
+    // /settings/change-password 500s. Require it so that feature does not ship broken.
+    if (!process.env["FIREBASE_API_KEY"] && !process.env["VITE_FIREBASE_API_KEY"]) {
+      problems.push("FIREBASE_API_KEY (or VITE_FIREBASE_API_KEY) is required for password-change verification");
+    }
+
     if (problems.length > 0) {
       // Fail fast: refuse to start a production server with missing or default secrets.
       throw new Error(`[DEPLOY MODE] Refusing to start: ${problems.join("; ")}`);
