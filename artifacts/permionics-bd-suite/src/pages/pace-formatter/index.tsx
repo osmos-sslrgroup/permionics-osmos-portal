@@ -22,6 +22,19 @@ function normalizeDateToMMDDYYYY(val: string): string {
   return s;
 }
 
+// Validate a MM/DD/YYYY string as a real calendar date (rejects month > 12, day > 31, and
+// overflow such as 02/30), plus anything not already in MM/DD/YYYY shape.
+function isValidMMDDYYYY(s: string): boolean {
+  const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return false;
+  const month = Number(m[1]);
+  const day = Number(m[2]);
+  const year = Number(m[3]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return false;
+  const d = new Date(year, month - 1, day);
+  return d.getFullYear() === year && d.getMonth() === month - 1 && d.getDate() === day;
+}
+
 export default function PaceFormatterPage() {
   const { toast } = useToast();
   const [docxFile, setDocxFile] = useState<File | null>(null);
@@ -63,6 +76,15 @@ export default function PaceFormatterPage() {
     }
     
     const normalizedDate = normalizeDateToMMDDYYYY(formData.date);
+    if (formData.date.trim() && !isValidMMDDYYYY(normalizedDate)) {
+      toast({
+        title: "Invalid date",
+        description: "Enter a real date in MM/DD/YYYY format (for example 02/13/2025).",
+        variant: "destructive",
+      });
+      setIsProcessing(false);
+      return;
+    }
     Object.entries(formData).forEach(([key, value]) => {
       form.append(key, key === "date" ? normalizedDate : value);
     });
