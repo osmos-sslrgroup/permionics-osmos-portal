@@ -1,5 +1,7 @@
 import { Router, type IRouter } from "express";
 import { requireAuth } from "../middlewares/requireAuth";
+import { requireRole } from "../middlewares/requireRole";
+import { SendChatMessageBody } from "@workspace/api-zod";
 import { supabase } from "../lib/db";
 import { debugLog } from "../lib/modes";
 import Groq from "groq-sdk";
@@ -220,13 +222,15 @@ async function getChatData() {
 
 router.post("/chat", requireAuth, async (req, res): Promise<void> => {
   try {
-    const { message, history = [] } = req.body;
-    debugLog("CHAT_REQ", "Received chat message", { message, historySize: history.length });
-
-    if (!message) {
-      res.status(400).json({ error: "Message is required" });
+    const parsed = SendChatMessageBody.pick({ message: true }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Message is required and must be a non-empty string" });
       return;
     }
+    const message: string = parsed.data.message;
+    const history = Array.isArray(req.body?.history) ? req.body.history : [];
+
+    debugLog("CHAT_REQ", "Received chat message", { message, historySize: history.length });
 
     // Extract meaningful search terms, preserving 2-letter technical acronyms like RO, NF, UF, pH, MB
     const searchTerms = message
@@ -394,12 +398,15 @@ ${contextBlocks.join("\n\n")}`;
       req.log.error({ err }, "Failed to save chat history to database");
     }
 
-    // Map matched references into clean frontend citations
+    // Map matched references into clean frontend citations. This MUST mirror the exact
+    // ordering/selection used to build contextBlocks above, so that citation [n] shown to
+    // the user points at the same document the LLM was told was [n].
     const matchedDocs = modeLabel === "broad_sweep"
-      ? allItems.slice(0, 5)
-      : (allItems.filter(r => r.score > 0).slice(0, 6).length > 0
-          ? allItems.filter(r => r.score > 0).slice(0, 6)
-          : allItems.slice(0, 3));
+      ? allItems.slice(0, 8)
+      : (() => {
+          const ranked = [...allItems].sort((a, b) => b.score - a.score).filter(r => r.score > 0).slice(0, 6);
+          return ranked.length > 0 ? ranked : allItems.slice(0, 6);
+        })();
 
     const sourcesList = matchedDocs.map(item => ({
       id: item.id,
@@ -429,7 +436,7 @@ router.get("/chat/history", requireAuth, async (req, res): Promise<void> => {
     const { data, error } = await supabase
       .from("chats")
       .select("id, role, content, created_at")
-      .order("created_at", { ascending: true })
+      .order("created_at", { ascending: false })
       .limit(50);
 
     if (error) {
@@ -437,13 +444,14 @@ router.get("/chat/history", requireAuth, async (req, res): Promise<void> => {
       return;
     }
 
-    res.json(data ?? []);
+    // Fetch the 50 NEWEST messages (descending), then return them oldest-first for display.
+    res.json((data ?? []).slice().reverse());
   } catch (err) {
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-router.delete("/chat/history", requireAuth, async (req, res): Promise<void> => {
+router.delete("/chat/history", requireRole(["admin"]), async (req, res): Promise<void> => {
   try {
     const { error } = await supabase
       .from("chats")

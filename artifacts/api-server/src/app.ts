@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
@@ -6,10 +6,15 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 import caseStudiesRoutes from "./routes/caseStudies";
 import { modesTracingMiddleware, validateDeployEnvironment } from "./lib/modes";
+import { migrationReady } from "./lib/db";
 
 validateDeployEnvironment();
 
 const app: Express = express();
+
+// Render (and most PaaS) put the app behind a reverse proxy. Without this, req.ip is
+// the proxy address and every client shares one rate-limit bucket. Trust the first hop.
+app.set("trust proxy", 1);
 
 app.use(modesTracingMiddleware);
 
@@ -33,33 +38,81 @@ app.use(
   }),
 );
 
-// CORS_ORIGIN: comma-separated list of allowed frontend origins.
-// In dev, the Vite dev server proxies /api so CORS is not needed.
-// In production, set CORS_ORIGIN to your frontend URL, e.g. https://permionics-bd.vercel.app
+// CORS_ORIGIN: comma-separated list of allowed frontend origins (EXACT match).
+// In dev, the Vite dev server proxies /api; localhost origins are allowed automatically.
+// In production, set CORS_ORIGIN to your exact frontend URL, e.g. https://osmos-xi.vercel.app
 const rawCorsOrigins = process.env["CORS_ORIGIN"] ?? "";
 const allowedOrigins = rawCorsOrigins
   .split(",")
   .map((o) => o.trim())
   .filter(Boolean);
 
+const isProd = process.env.NODE_ENV === "production";
+
+// Exact-match allowlist. In development, any localhost / 127.0.0.1 origin is allowed.
+// No suffix/prefix matching (previously any *.vercel.app and localhost.* was accepted).
+function isAllowedOrigin(origin: string): boolean {
+  if (allowedOrigins.includes(origin)) return true;
+  if (!isProd) {
+    try {
+      const host = new URL(origin).hostname;
+      if (host === "localhost" || host === "127.0.0.1") return true;
+    } catch {
+      /* malformed origin -> not allowed */
+    }
+  }
+  return false;
+}
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Same-origin requests (no Origin header) always allowed
+      // Same-origin / non-browser requests (no Origin header) are allowed.
       if (!origin) return callback(null, true);
-      // Localhost always allowed (dev)
-      if (origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1")) {
-        return callback(null, true);
-      }
-      if (origin.endsWith("vercel.app")) {
-        return callback(null, true);
-      }
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-      callback(new Error("CORS not allowed"));
+      // Reject disallowed origins cleanly (false -> no CORS headers, no 500).
+      return callback(null, isAllowedOrigin(origin));
     },
     credentials: true,
   }),
 );
+
+// CSRF defense for cookie-authenticated, state-changing requests. Browsers always send
+// Origin (and usually Referer) on such requests, so a page on another site cannot
+// silently drive writes using the victim's session cookie.
+const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+function csrfOriginCheck(req: Request, res: Response, next: NextFunction): void {
+  if (!MUTATING_METHODS.has(req.method)) {
+    next();
+    return;
+  }
+
+  const origin = req.get("origin");
+  if (origin) {
+    if (isAllowedOrigin(origin)) {
+      next();
+      return;
+    }
+    res.status(403).json({ error: "Cross-origin request blocked" });
+    return;
+  }
+
+  const referer = req.get("referer");
+  if (referer) {
+    try {
+      if (isAllowedOrigin(new URL(referer).origin)) {
+        next();
+        return;
+      }
+    } catch {
+      /* malformed referer -> treat as blocked */
+    }
+    res.status(403).json({ error: "Cross-origin request blocked" });
+    return;
+  }
+
+  // Neither Origin nor Referer present: not a browser CSRF vector (e.g. server-to-server).
+  next();
+}
 import rateLimit from "express-rate-limit";
 
 // Rate Limiters for Security & API Cost Control
@@ -96,7 +149,16 @@ app.use("/api", globalLimiter);
 app.use("/api/auth/login", authLimiter);
 app.use("/api/chat", aiLimiter);
 app.use("/api/assistant/upload", aiLimiter);
+app.use("/api/assistant/documents/:id/reprocess", aiLimiter);
 
+// Hold API requests until the schema migration has resolved. After it resolves once,
+// awaiting the settled promise is effectively free.
+app.use("/api", async (_req: Request, _res: Response, next: NextFunction) => {
+  await migrationReady;
+  next();
+});
+
+app.use("/api", csrfOriginCheck);
 app.use("/api", router);
 app.use("/api", caseStudiesRoutes);
 

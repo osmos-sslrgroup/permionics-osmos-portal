@@ -1,8 +1,30 @@
 import { Router, type IRouter } from "express";
 import { requireAuth } from "../middlewares/requireAuth";
 import { checkPassword, getAdminPassword, setAdminPassword } from "../lib/auth";
+import { supabase } from "../lib/db";
 
 const router: IRouter = Router();
+
+// Verify a user's CURRENT password. The Firebase Admin SDK cannot verify a password,
+// so we use the Identity Toolkit signInWithPassword REST endpoint (or the Auth emulator
+// in dev). Returns true only when the credentials are valid.
+async function verifyFirebasePassword(email: string, password: string): Promise<boolean> {
+  const emulatorHost = process.env["FIREBASE_AUTH_EMULATOR_HOST"];
+  const apiKey = process.env["FIREBASE_API_KEY"] || process.env["VITE_FIREBASE_API_KEY"] || "";
+  const base = emulatorHost
+    ? `http://${emulatorHost}/identitytoolkit.googleapis.com`
+    : "https://identitytoolkit.googleapis.com";
+  // The emulator accepts any key; production requires the real Firebase Web API key.
+  const key = emulatorHost ? (apiKey || "fake-api-key") : apiKey;
+  if (!key) throw new Error("NO_FIREBASE_API_KEY");
+
+  const resp = await fetch(`${base}/v1/accounts:signInWithPassword?key=${encodeURIComponent(key)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, returnSecureToken: false }),
+  });
+  return resp.ok;
+}
 
 router.post("/settings/change-password", requireAuth, async (req, res): Promise<void> => {
   const { currentPassword, newPassword } = req.body as {
@@ -40,6 +62,19 @@ router.post("/settings/change-password", requireAuth, async (req, res): Promise<
       .maybeSingle();
 
     if (dbUser && dbUser.firebase_uid) {
+      // Verify the CURRENT password before changing it.
+      let verified = false;
+      try {
+        verified = await verifyFirebasePassword(dbUser.email, currentPassword);
+      } catch (verr) {
+        req.log.error({ verr }, "Password verification unavailable");
+        res.status(500).json({ error: "Password change is not available right now." });
+        return;
+      }
+      if (!verified) {
+        res.status(401).json({ error: "Current password is incorrect" });
+        return;
+      }
       try {
         await firebaseAuth.updateUser(dbUser.firebase_uid, { password: newPassword });
         await supabase
@@ -48,7 +83,9 @@ router.post("/settings/change-password", requireAuth, async (req, res): Promise<
           .eq("id", dbUser.id);
         isUserPasswordUpdated = true;
       } catch (fbErr: any) {
-        req.log.warn({ fbErr }, "Firebase password update warning, falling back to admin check");
+        req.log.warn({ fbErr }, "Firebase password update failed");
+        res.status(500).json({ error: "Failed to update password" });
+        return;
       }
     }
   }
@@ -83,7 +120,15 @@ router.post("/settings/change-password", requireAuth, async (req, res): Promise<
 });
 
 router.get("/settings/status", requireAuth, async (req, res): Promise<void> => {
-  const dbConnected = !!process.env["DATABASE_URL"];
+  // Actually probe the database rather than only checking that a URL is configured.
+  let dbConnected = false;
+  try {
+    const { error } = await supabase.from("users").select("id").limit(1);
+    dbConnected = !error;
+  } catch {
+    dbConnected = false;
+  }
+
   const llmConnected = !!process.env["GROQ_API_KEY"] || !!process.env["GEMINI_API_KEY"];
 
   res.json({

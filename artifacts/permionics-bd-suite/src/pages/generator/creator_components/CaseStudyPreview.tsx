@@ -104,8 +104,9 @@ export function CaseStudyPreview({ data, palette, editable = false, onChange }: 
             e.currentTarget.blur();
           }
         }}
-        dangerouslySetInnerHTML={{ __html: value }}
-      />
+      >
+        {value}
+      </span>
     );
   }
 
@@ -245,8 +246,9 @@ export function CaseStudyPreview({ data, palette, editable = false, onChange }: 
                     parts[i] = el.innerText;
                     editField("intro", parts.join("\n\n"));
                   }}
-                  dangerouslySetInnerHTML={{ __html: para }}
-                />
+                >
+                  {para}
+                </span>
               ) : para}
             </p>
           ))}
@@ -360,8 +362,9 @@ export function CaseStudyPreview({ data, palette, editable = false, onChange }: 
                         className="cs-editable-text"
                         style={{ display: "inline-block", minWidth: "30px", cursor: "text" }}
                         onBlur={(e) => handleWaterCellBlur(i, "parameter", e.currentTarget.innerText)}
-                        dangerouslySetInnerHTML={{ __html: row.parameter }}
-                      />
+                      >
+                        {row.parameter}
+                      </span>
                     ) : (
                       row.parameter
                     )}
@@ -374,8 +377,9 @@ export function CaseStudyPreview({ data, palette, editable = false, onChange }: 
                         className="cs-editable-text"
                         style={{ display: "inline-block", minWidth: "20px", cursor: "text" }}
                         onBlur={(e) => handleWaterCellBlur(i, "unit", e.currentTarget.innerText)}
-                        dangerouslySetInnerHTML={{ __html: row.unit }}
-                      />
+                      >
+                        {row.unit}
+                      </span>
                     ) : (
                       row.unit
                     )}
@@ -388,8 +392,9 @@ export function CaseStudyPreview({ data, palette, editable = false, onChange }: 
                         className="cs-editable-text"
                         style={{ display: "inline-block", minWidth: "20px", cursor: "text" }}
                         onBlur={(e) => handleWaterCellBlur(i, "feed", e.currentTarget.innerText)}
-                        dangerouslySetInnerHTML={{ __html: row.feed }}
-                      />
+                      >
+                        {row.feed}
+                      </span>
                     ) : (
                       row.feed
                     )}
@@ -402,8 +407,9 @@ export function CaseStudyPreview({ data, palette, editable = false, onChange }: 
                         className="cs-editable-text"
                         style={{ display: "inline-block", minWidth: "20px", cursor: "text" }}
                         onBlur={(e) => handleWaterCellBlur(i, "treated", e.currentTarget.innerText)}
-                        dangerouslySetInnerHTML={{ __html: row.treated }}
-                      />
+                      >
+                        {row.treated}
+                      </span>
                     ) : (
                       row.treated
                     )}

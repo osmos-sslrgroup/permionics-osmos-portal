@@ -38,7 +38,8 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   }
 
   // Check role restrictions if specified
-  const currentRole = (data as any).user?.role || "admin";
+  // Fail closed: a missing role grants NO access (was defaulting to "admin").
+  const currentRole = (data as any).user?.role || "";
   if (allowedRoles && !allowedRoles.includes(currentRole)) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background p-6">

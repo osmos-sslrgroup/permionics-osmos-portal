@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { requireAuth } from "../middlewares/requireAuth";
+import { requireRole } from "../middlewares/requireRole";
 import { supabase } from "../lib/db";
 
 const router: IRouter = Router();
@@ -35,7 +36,7 @@ router.get("/projects", requireAuth, async (req, res): Promise<void> => {
 });
 
 // ── Create project ────────────────────────────────────────────────────────────
-router.post("/projects", requireAuth, async (req, res): Promise<void> => {
+router.post("/projects", requireRole(["admin", "operator"]), async (req, res): Promise<void> => {
   try {
     const body = req.body as {
       name?: string;
@@ -129,7 +130,7 @@ router.get("/projects/:id", requireAuth, async (req, res): Promise<void> => {
 });
 
 // ── Update project ────────────────────────────────────────────────────────────
-router.put("/projects/:id", requireAuth, async (req, res): Promise<void> => {
+router.put("/projects/:id", requireRole(["admin", "operator"]), async (req, res): Promise<void> => {
   try {
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) {
@@ -189,7 +190,7 @@ router.put("/projects/:id", requireAuth, async (req, res): Promise<void> => {
 });
 
 // ── Delete project ────────────────────────────────────────────────────────────
-router.delete("/projects/:id", requireAuth, async (req, res): Promise<void> => {
+router.delete("/projects/:id", requireRole(["admin", "operator"]), async (req, res): Promise<void> => {
   try {
     const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) {

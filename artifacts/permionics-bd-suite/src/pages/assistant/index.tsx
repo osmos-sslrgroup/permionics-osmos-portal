@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Send, User, Upload, FileText, Trash2, Loader2, RefreshCw, AlertTriangle, Activity, Sparkles, MessageSquare } from "lucide-react";
-import { useSendChatMessage, ChatSource, customFetch } from "@workspace/api-client-react";
+import { useSendChatMessage, ChatSource, customFetch, useGetMe } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -137,6 +137,9 @@ export default function AssistantPage() {
   const sendChat = useSendChatMessage();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { data: meData } = useGetMe();
+  const userRole = (meData as any)?.user?.role;
+  const canManageDocs = userRole === "admin" || userRole === "operator";
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -525,48 +528,52 @@ export default function AssistantPage() {
           >
             <div className="px-6 py-4 bg-muted/30 border-b border-border/50">
               <h3 className="text-lg font-bold tracking-tight">Reference Library</h3>
-              <p className="text-xs font-medium text-muted-foreground mt-1">Upload external PDFs to include them in queries.</p>
+              <p className="text-xs font-medium text-muted-foreground mt-1">{canManageDocs ? "Upload external PDFs to include them in queries." : "Reference PDFs indexed for assistant queries."}</p>
             </div>
             
             <div className="flex-1 flex flex-col p-6 space-y-5">
-              <input 
-                type="file" 
-                accept="application/pdf"
-                className="hidden" 
-                ref={fileInputRef} 
-                onChange={handleFileUpload} 
-              />
-              
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading}
-                className="w-full flex flex-col items-center justify-center p-8 border-2 border-dashed border-border/60 rounded-2xl bg-muted/20 text-muted-foreground hover:bg-primary/5 hover:border-primary/40 hover:text-primary transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed group"
-              >
-                {isUploading ? (
-                  <>
-                    <Loader2 className="w-8 h-8 mb-3 animate-spin text-primary" /> 
-                    <span className="text-sm font-bold">Extracting Text...</span>
-                  </>
-                ) : (
-                  <>
-                    <div className="w-12 h-12 rounded-full bg-background border border-border/50 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
-                      <Upload className="w-5 h-5" /> 
-                    </div>
-                    <span className="text-sm font-bold text-foreground">Upload PDF Document</span>
-                    <span className="text-xs font-medium mt-1 opacity-70">Will be processed by Gemini Vision OCR</span>
-                  </>
-                )}
-              </button>
+              {canManageDocs && (
+                <>
+                  <input 
+                    type="file" 
+                    accept="application/pdf"
+                    className="hidden" 
+                    ref={fileInputRef} 
+                    onChange={handleFileUpload} 
+                  />
+                  
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                    className="w-full flex flex-col items-center justify-center p-8 border-2 border-dashed border-border/60 rounded-2xl bg-muted/20 text-muted-foreground hover:bg-primary/5 hover:border-primary/40 hover:text-primary transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed group"
+                  >
+                    {isUploading ? (
+                      <>
+                        <Loader2 className="w-8 h-8 mb-3 animate-spin text-primary" /> 
+                        <span className="text-sm font-bold">Extracting Text...</span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-12 h-12 rounded-full bg-background border border-border/50 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                          <Upload className="w-5 h-5" /> 
+                        </div>
+                        <span className="text-sm font-bold text-foreground">Upload PDF Document</span>
+                        <span className="text-xs font-medium mt-1 opacity-70">Will be processed by Gemini Vision OCR</span>
+                      </>
+                    )}
+                  </button>
 
-              {/* Hidden file input for re-OCR reprocessing */}
-              <input
-                type="file"
-                accept="application/pdf"
-                className="hidden"
-                ref={reprocessFileInputRef}
-                onChange={handleReprocessUpload}
-              />
+                  {/* Hidden file input for re-OCR reprocessing */}
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    className="hidden"
+                    ref={reprocessFileInputRef}
+                    onChange={handleReprocessUpload}
+                  />
+                </>
+              )}
 
               <div className="flex-1 overflow-y-auto pr-2 space-y-3">
                 {documents.length === 0 ? (
@@ -591,32 +598,34 @@ export default function AssistantPage() {
                         <div className="truncate text-sm font-bold">{doc.title}</div>
                       </div>
                       
-                      <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
-                        {!doc.hasContent && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 text-xs font-bold border-amber-500/30 text-amber-700 hover:text-amber-900 hover:bg-amber-500/20 dark:text-amber-400 dark:hover:text-amber-300 dark:hover:bg-amber-500/30 px-3 rounded-lg"
-                            disabled={reprocessingId === doc.id}
-                            onClick={() => handleReprocessClick(doc.id)}
-                            title="Re-upload and OCR this document with Gemini Vision"
+                      {canManageDocs && (
+                        <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                          {!doc.hasContent && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 text-xs font-bold border-amber-500/30 text-amber-700 hover:text-amber-900 hover:bg-amber-500/20 dark:text-amber-400 dark:hover:text-amber-300 dark:hover:bg-amber-500/30 px-3 rounded-lg"
+                              disabled={reprocessingId === doc.id}
+                              onClick={() => handleReprocessClick(doc.id)}
+                              title="Re-upload and OCR this document with Gemini Vision"
+                            >
+                              {reprocessingId === doc.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <><RefreshCw className="w-3.5 h-3.5 mr-1.5" />OCR</>
+                              )}
+                            </Button>
+                          )}
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive rounded-lg"
+                            onClick={() => handleDeleteDocument(doc.id)}
                           >
-                            {reprocessingId === doc.id ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <><RefreshCw className="w-3.5 h-3.5 mr-1.5" />OCR</>
-                            )}
+                            <Trash2 className="w-4 h-4" />
                           </Button>
-                        )}
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive rounded-lg"
-                          onClick={() => handleDeleteDocument(doc.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                        </div>
+                      )}
                     </div>
                   ))
                 )}

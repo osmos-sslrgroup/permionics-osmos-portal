@@ -28,8 +28,9 @@ async function ensureAdminUser() {
     try {
       const fbUser = await firebaseAuth.getUserByEmail(adminEmail);
       firebaseUid = fbUser.uid;
-      await firebaseAuth.updateUser(firebaseUid, { password: adminPassword });
-      logger.info({ adminEmail }, "Firebase Admin user password updated.");
+      // Do NOT reset the password on every boot: that would silently revert an
+      // admin-initiated password change back to the seed value from ADMIN_PASSWORD.
+      logger.info({ adminEmail }, "Firebase Admin user present.");
     } catch (err: any) {
       if (err.code === "auth/user-not-found") {
         const fbUser = await firebaseAuth.createUser({
@@ -67,15 +68,18 @@ app.listen(port, async (err?: any) => {
 
   logger.info({ port }, "Server listening");
 
-  // Keep Render backend awake by self-pinging every 10 minutes
-  const PUBLIC_URL = "https://permionics-osmos-portal.onrender.com/api/healthz";
-  setInterval(() => {
-    fetch(PUBLIC_URL)
-      .then((res) => {
-        logger.info({ status: res.status }, "keep-alive: Self-ping successful");
-      })
-      .catch((err) => {
-        logger.warn({ err: err.message }, "keep-alive: Self-ping failed");
-      });
-  }, 600000); // 10 minutes
+  // Keep the backend awake by self-pinging. Opt-in and environment-driven: set
+  // KEEP_ALIVE_URL (e.g. the deployed /api/healthz) to enable; unset in other envs.
+  const keepAliveUrl = process.env["KEEP_ALIVE_URL"];
+  if (keepAliveUrl) {
+    setInterval(() => {
+      fetch(keepAliveUrl)
+        .then((res) => {
+          logger.info({ status: res.status }, "keep-alive: Self-ping successful");
+        })
+        .catch((err) => {
+          logger.warn({ err: err.message }, "keep-alive: Self-ping failed");
+        });
+    }, 600000); // 10 minutes
+  }
 });

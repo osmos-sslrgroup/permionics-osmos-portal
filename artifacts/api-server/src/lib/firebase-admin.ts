@@ -5,6 +5,13 @@ const initFirebaseAdmin = (): Auth => {
   if (getApps().length > 0) return getAuth();
 
   const isEmulator = Boolean(process.env.FIREBASE_AUTH_EMULATOR_HOST);
+  const isProd = process.env.NODE_ENV === "production";
+
+  // Fail fast in production rather than silently initializing a throwaway demo project
+  // (which makes auth fail in confusing ways later).
+  if (isProd && !isEmulator && !process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+    throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY is required in production");
+  }
 
   try {
     if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
@@ -24,6 +31,7 @@ const initFirebaseAdmin = (): Auth => {
     }
   } catch (error) {
     console.error("Firebase Admin initialization error", error);
+    if (isProd) throw error; // do not limp along with broken credentials in production
   }
 
   return getAuth();

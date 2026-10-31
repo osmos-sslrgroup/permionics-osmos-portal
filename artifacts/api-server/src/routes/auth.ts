@@ -25,26 +25,40 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   }
 
   try {
-    const decodedToken = await firebaseAuth.verifyIdToken(idToken);
+    const decodedToken = await firebaseAuth.verifyIdToken(idToken, true); // checkRevoked
     const firebaseUid = decodedToken.uid;
     const cleanEmail = String(decodedToken.email || "").toLowerCase().trim();
 
-    // Fetch user from Supabase PostgreSQL by firebase_uid
-    const { data: userByUid } = await supabase
+    // Fetch user from Supabase PostgreSQL by firebase_uid. A lookup ERROR (transient DB
+    // failure) must NOT be treated as "user absent" — otherwise the auto-provision below
+    // would overwrite an existing admin/operator row and downgrade its role to "user".
+    const { data: userByUid, error: uidErr } = await supabase
       .from("users")
       .select("*")
       .eq("firebase_uid", firebaseUid)
       .maybeSingle();
 
+    if (uidErr) {
+      req.log.error({ err: uidErr }, "User lookup by firebase_uid failed");
+      res.status(500).json({ error: "Login temporarily unavailable. Please try again." });
+      return;
+    }
+
     let user = userByUid;
 
     if (!user && cleanEmail) {
       // Fallback by email
-      const { data: userByEmail } = await supabase
+      const { data: userByEmail, error: emailErr } = await supabase
         .from("users")
         .select("*")
         .eq("email", cleanEmail)
         .maybeSingle();
+
+      if (emailErr) {
+        req.log.error({ err: emailErr }, "User lookup by email failed");
+        res.status(500).json({ error: "Login temporarily unavailable. Please try again." });
+        return;
+      }
 
       if (userByEmail) {
         await supabase.from("users").update({ firebase_uid: firebaseUid }).eq("id", userByEmail.id);
@@ -52,30 +66,44 @@ router.post("/auth/login", async (req, res): Promise<void> => {
       }
     }
 
-    // Auto-provision if user exists in Firebase Auth but missing in PostgreSQL users table
+    // Auto-provision if user exists in Firebase Auth but missing in PostgreSQL users table.
+    // Role is ALWAYS "user" here: admin is seeded only via ensureAdminUser, never derived from email.
+    // Both lookups above succeeded with no row, so a plain insert is correct; a concurrent
+    // conflict surfaces as an error (ignored below) instead of silently downgrading a role.
     if (!user && cleanEmail) {
-      const defaultRole = cleanEmail === getAdminEmail() ? "admin" : "user";
+      const defaultRole = "user";
       const { data: newUser, error: autoErr } = await supabase
         .from("users")
-        .upsert(
-          {
-            name: decodedToken.name || cleanEmail.split("@")[0] || "User",
-            email: cleanEmail,
-            role: defaultRole,
-            firebase_uid: firebaseUid,
-          },
-          { onConflict: "email" }
-        )
+        .insert({
+          name: decodedToken.name || cleanEmail.split("@")[0] || "User",
+          email: cleanEmail,
+          role: defaultRole,
+          firebase_uid: firebaseUid,
+        })
         .select()
         .maybeSingle();
 
       if (!autoErr && newUser) {
         user = newUser;
+      } else if (autoErr) {
+        // A concurrent login may have inserted the row first (unique conflict). Re-fetch by
+        // firebase_uid and use that row instead of falling through to "User not found".
+        const { data: raced } = await supabase
+          .from("users")
+          .select("*")
+          .eq("firebase_uid", firebaseUid)
+          .maybeSingle();
+        if (raced) user = raced;
       }
     }
 
     if (!user) {
       res.status(401).json({ error: "User not found in database." });
+      return;
+    }
+
+    if (user.is_blocked) {
+      res.status(403).json({ error: "Account suspended. Contact an administrator." });
       return;
     }
 
@@ -88,7 +116,8 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   }
 });
 
-// Public User Signup (Creates account with 'user' role & syncs to PostgreSQL)
+// Public User Signup: creates a NEW 'user' account only. Never takes over or
+// re-authenticates an existing account, and never grants admin/operator.
 router.post("/auth/signup", async (req, res): Promise<void> => {
   const { name, email, password } = req.body;
 
@@ -97,9 +126,28 @@ router.post("/auth/signup", async (req, res): Promise<void> => {
     return;
   }
 
+  if (typeof password !== "string" || password.length < 8) {
+    res.status(400).json({ error: "Password must be at least 8 characters" });
+    return;
+  }
+
   const cleanEmail = String(email).toLowerCase().trim();
 
   try {
+    // Reject if the account already exists in PostgreSQL (never hijack/overwrite it).
+    const { data: existingDbUser } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", cleanEmail)
+      .maybeSingle();
+
+    if (existingDbUser) {
+      res.status(400).json({ error: "An account with this email already exists." });
+      return;
+    }
+
+    // Create the Firebase Auth user; a pre-existing Firebase account is also rejected
+    // (we never look up and reuse an existing UID without a verified password).
     let firebaseUid = "";
     try {
       const fbUser = await firebaseAuth.createUser({
@@ -110,35 +158,35 @@ router.post("/auth/signup", async (req, res): Promise<void> => {
       firebaseUid = fbUser.uid;
     } catch (fbErr: any) {
       if (fbErr.code === "auth/email-already-exists") {
-        try {
-          const existingFbUser = await firebaseAuth.getUserByEmail(cleanEmail);
-          firebaseUid = existingFbUser.uid;
-        } catch {
-          res.status(400).json({ error: "An account with this email already exists in Firebase Auth." });
-          return;
-        }
-      } else {
-        throw fbErr;
+        res.status(400).json({ error: "An account with this email already exists." });
+        return;
       }
+      throw fbErr;
     }
 
-    // Upsert into Supabase PostgreSQL users table
+    // Insert a fresh PostgreSQL row. Public signups are ALWAYS role "user".
     const { data: dbUser, error: dbErr } = await supabase
       .from("users")
-      .upsert(
-        {
-          name: name || cleanEmail.split("@")[0] || "User",
-          email: cleanEmail,
-          role: cleanEmail === getAdminEmail() ? "admin" : "user",
-          firebase_uid: firebaseUid,
-        },
-        { onConflict: "email" }
-      )
+      .insert({
+        name: name || cleanEmail.split("@")[0] || "User",
+        email: cleanEmail,
+        role: "user",
+        firebase_uid: firebaseUid,
+      })
       .select()
       .single();
 
     if (dbErr || !dbUser) {
-      req.log.error({ dbErr }, "Database upsert error during signup");
+      req.log.error({ dbErr }, "Database insert error during signup");
+      // The Firebase account was created but the DB row failed. Remove the orphaned
+      // Firebase account so a retry is not permanently blocked by auth/email-already-exists.
+      try {
+        await firebaseAuth.deleteUser(firebaseUid);
+      } catch (cleanupErr: any) {
+        if (cleanupErr?.code !== "auth/user-not-found") {
+          req.log.warn({ cleanupErr }, "Failed to delete orphaned Firebase user after signup DB failure");
+        }
+      }
       res.status(500).json({ error: "Failed to sync user account to database" });
       return;
     }
@@ -194,6 +242,10 @@ router.post("/auth/operator", requireRole(["admin"]), async (req, res): Promise<
 
   try {
     let firebaseUid = "";
+    // True when the email already had a Firebase account we are reusing. The operator then
+    // keeps their EXISTING password (we never overwrite it), so there is no temporary
+    // password to reset — reflected in needs_password_reset and the response below.
+    let existed = false;
     try {
       const fbUser = await firebaseAuth.createUser({
         email: cleanEmail,
@@ -203,10 +255,11 @@ router.post("/auth/operator", requireRole(["admin"]), async (req, res): Promise<
       firebaseUid = fbUser.uid;
     } catch (fbErr: any) {
       if (fbErr.code === "auth/email-already-exists") {
+         // Reuse the existing Firebase account WITHOUT resetting its password: an admin
+         // promoting someone to operator must not silently overwrite their credentials.
          const fbUser = await firebaseAuth.getUserByEmail(cleanEmail);
          firebaseUid = fbUser.uid;
-         // Ensure password is set correctly for existing Firebase user if we are reclaiming
-         await firebaseAuth.updateUser(firebaseUid, { password });
+         existed = true;
       } else {
          throw fbErr;
       }
@@ -219,33 +272,68 @@ router.post("/auth/operator", requireRole(["admin"]), async (req, res): Promise<
         email: cleanEmail,
         role: "operator",
         firebase_uid: firebaseUid,
-        needs_password_reset: true
+        needs_password_reset: !existed
       })
       .select()
       .single();
 
     if (error) {
       if (error.message?.includes("duplicate") || error.code === "23505") {
-        // If already exists in DB, update it
+        // A row with this email already exists. Never modify an admin account; otherwise
+        // promote it to operator. Preserve a pending reset when reusing an existing Firebase
+        // account (existed), and force one only for a freshly created temporary password.
+        const { data: existingRow, error: fetchErr } = await supabase
+           .from("users")
+           .select("role")
+           .eq("email", cleanEmail)
+           .maybeSingle();
+
+        if (fetchErr) {
+          res.status(500).json({ error: "Failed to look up existing account" });
+          return;
+        }
+
+        if (existingRow?.role === "admin") {
+          res.status(409).json({ error: "An admin account with this email already exists." });
+          return;
+        }
+
+        const updates: { role: string; firebase_uid: string; needs_password_reset?: boolean } = {
+          role: "operator",
+          firebase_uid: firebaseUid,
+        };
+        if (!existed) updates.needs_password_reset = true;
+
         const { data: updatedData, error: updateError } = await supabase
            .from("users")
-           .update({
-             firebase_uid: firebaseUid,
-             needs_password_reset: true
-           })
+           .update(updates)
            .eq("email", cleanEmail)
            .select()
            .single();
-           
+
         if (updateError) throw updateError;
-        res.status(201).json({ success: true, operator: { id: updatedData.id, email: updatedData.email, name: updatedData.name, role: updatedData.role } });
+        res.status(201).json({
+          success: true,
+          existingAccount: existed,
+          message: existed
+            ? "This email already had an account; it is now an operator and signs in with its existing password."
+            : "Operator created. They sign in with the temporary password and will be prompted to reset it.",
+          operator: { id: updatedData.id, email: updatedData.email, name: updatedData.name, role: updatedData.role },
+        });
         return;
       }
       res.status(500).json({ error: "Failed to create operator account" });
       return;
     }
 
-    res.status(201).json({ success: true, operator: { id: data.id, email: data.email, name: data.name, role: data.role } });
+    res.status(201).json({
+      success: true,
+      existingAccount: existed,
+      message: existed
+        ? "This email already had an account; it is now an operator and signs in with its existing password."
+        : "Operator created. They sign in with the temporary password and will be prompted to reset it.",
+      operator: { id: data.id, email: data.email, name: data.name, role: data.role },
+    });
   } catch (err: any) {
     res.status(500).json({ error: err?.message || "Internal server error" });
   }
@@ -273,7 +361,12 @@ router.get("/auth/users", requireRole(["admin"]), async (_req, res): Promise<voi
 // Admin-only: Toggle block status for user or operator
 router.post("/auth/users/:id/block", requireRole(["admin"]), async (req, res): Promise<void> => {
   const { blocked } = req.body;
-  
+
+  if (typeof blocked !== "boolean") {
+    res.status(400).json({ error: "blocked must be a boolean" });
+    return;
+  }
+
   try {
     const { data: user, error: fetchErr } = await supabase.from("users").select("firebase_uid, role").eq("id", req.params.id).single();
     if (fetchErr || !user) {
@@ -302,7 +395,24 @@ router.post("/auth/users/:id/block", requireRole(["admin"]), async (req, res): P
 // Admin-only: Delete user or operator
 router.delete("/auth/users/:id", requireRole(["admin"]), async (req, res): Promise<void> => {
   try {
-    const { data: user } = await supabase.from("users").select("firebase_uid").eq("id", req.params.id).single();
+    const callerId = (req as any).user?.userId;
+    if (callerId && String(callerId) === String(req.params.id)) {
+      res.status(403).json({ error: "You cannot delete your own account" });
+      return;
+    }
+
+    const { data: user } = await supabase.from("users").select("firebase_uid, role").eq("id", req.params.id).single();
+
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    if ((user as { role?: string }).role === "admin") {
+      res.status(403).json({ error: "Cannot delete an admin account" });
+      return;
+    }
+
     if (user?.firebase_uid) {
       try {
         await firebaseAuth.deleteUser(user.firebase_uid);

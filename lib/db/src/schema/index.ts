@@ -32,7 +32,7 @@ export const caseStudiesTable = pgTable("case_studies", {
   capacity: text("capacity").notNull(),
   results: text("results").notNull(),
   testimonial: text("testimonial"),
-  tags: jsonb("tags").$type<string[]>(),
+  tags: text("tags").array().$type<string[]>(),
   fullText: text("full_text"),
   richData: jsonb("rich_data"),
   createdAt: timestamp("created_at").defaultNow(),

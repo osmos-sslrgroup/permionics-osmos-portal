@@ -1,14 +1,12 @@
 import { Router, type IRouter } from "express";
 import multer from "multer";
 import { requireAuth } from "../middlewares/requireAuth";
+import { requireRole } from "../middlewares/requireRole";
 import { supabase } from "../lib/db";
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { createRequire } from "module";
 import { GoogleGenAI } from "@google/genai";
-
-const require = createRequire(import.meta.url);
 
 const router: IRouter = Router();
 const upload = multer({ dest: os.tmpdir() });
@@ -23,9 +21,13 @@ const ai = new GoogleGenAI({ apiKey: geminiKey || "placeholder" });
 
 async function extractTextWithPdfParse(filePath: string): Promise<string> {
   try {
-    const pdfParse = require("pdf-parse");
+    // pdf-parse v2 exposes a PDFParse class (same usage as routes/caseStudies.ts).
+    // Calling the module as a function (v1 style) throws under v2 and silently yields "",
+    // which pushed every text PDF to Gemini OCR or the "needs key" placeholder.
+    const { PDFParse } = await import("pdf-parse");
     const dataBuffer = fs.readFileSync(filePath);
-    const result = await pdfParse(dataBuffer);
+    const parser = new (PDFParse as any)({ data: dataBuffer });
+    const result = await parser.getText();
     return (result.text || "").trim();
   } catch (err) {
     return "";
@@ -128,7 +130,7 @@ async function extractDocumentText(filePath: string, filename: string): Promise<
 
 // ── Upload route ──────────────────────────────────────────────────────────────
 
-router.post("/assistant/upload", requireAuth, upload.single("file"), async (req, res): Promise<void> => {
+router.post("/assistant/upload", requireRole(["admin", "operator"]), upload.single("file"), async (req, res): Promise<void> => {
   if (!req.file) {
     res.status(400).json({ error: "No file uploaded" });
     return;
@@ -168,7 +170,7 @@ router.post("/assistant/upload", requireAuth, upload.single("file"), async (req,
 // ── Reprocess route: re-OCR an existing empty document ───────────────────────
 // POST /api/assistant/documents/:id/reprocess  (with the file as multipart form)
 
-router.post("/assistant/documents/:id/reprocess", requireAuth, upload.single("file"), async (req, res): Promise<void> => {
+router.post("/assistant/documents/:id/reprocess", requireRole(["admin", "operator"]), upload.single("file"), async (req, res): Promise<void> => {
   if (!req.file) {
     res.status(400).json({ error: "No file uploaded" });
     return;
@@ -237,7 +239,7 @@ router.get("/assistant/documents", requireAuth, async (req, res): Promise<void> 
 
 // ── Delete document ───────────────────────────────────────────────────────────
 
-router.delete("/assistant/documents/:id", requireAuth, async (req, res): Promise<void> => {
+router.delete("/assistant/documents/:id", requireRole(["admin", "operator"]), async (req, res): Promise<void> => {
   try {
     const { error } = await supabase
       .from("assistant_documents")

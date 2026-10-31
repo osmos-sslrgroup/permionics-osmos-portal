@@ -8,18 +8,34 @@ import * as docx from "docx-preview";
 import { motion, AnimatePresence } from "framer-motion";
 import { customFetch } from "@workspace/api-client-react";
 
-function normalizeDateToDDMMYYYY(val: string): string {
+function normalizeDateToMMDDYYYY(val: string): string {
   if (!val || !val.trim()) return "";
   const s = val.trim();
   const ymd = s.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
-  const dmy = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  const mdy = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
   if (ymd) {
-    return `${ymd[3].padStart(2, "0")}/${ymd[2].padStart(2, "0")}/${ymd[1]}`;
+    return `${ymd[2].padStart(2, "0")}/${ymd[3].padStart(2, "0")}/${ymd[1]}`;
   }
-  if (dmy) {
-    return `${dmy[1].padStart(2, "0")}/${dmy[2].padStart(2, "0")}/${dmy[3]}`;
+  if (mdy) {
+    return `${mdy[1].padStart(2, "0")}/${mdy[2].padStart(2, "0")}/${mdy[3]}`;
   }
   return s;
+}
+
+// Validate a MM/DD/YYYY string as a real calendar date (rejects month > 12, day > 31, and
+// overflow such as 02/30), plus anything not already in MM/DD/YYYY shape.
+function isValidMMDDYYYY(s: string): boolean {
+  const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return false;
+  const month = Number(m[1]);
+  const day = Number(m[2]);
+  const year = Number(m[3]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return false;
+  // Build via setUTCFullYear (the Date constructor and Date.UTC remap years 0-99 to 1900-1999)
+  // and read UTC getters so validation does not depend on the browser's time zone.
+  const d = new Date(0);
+  d.setUTCFullYear(year, month - 1, day);
+  return d.getUTCFullYear() === year && d.getUTCMonth() === month - 1 && d.getUTCDate() === day;
 }
 
 export default function PaceFormatterPage() {
@@ -52,7 +68,19 @@ export default function PaceFormatterPage() {
 
   const handleSubmit = async () => {
     if (!docxFile) return;
-    
+
+    // Validate the date BEFORE touching processing state or clearing the current preview,
+    // so an invalid date does not wipe an already-generated document.
+    const normalizedDate = normalizeDateToMMDDYYYY(formData.date);
+    if (formData.date.trim() && !isValidMMDDYYYY(normalizedDate)) {
+      toast({
+        title: "Invalid date",
+        description: "Enter a real date in MM/DD/YYYY format (for example 02/13/2025).",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsProcessing(true);
     setProcessedBlob(null);
 
@@ -61,8 +89,7 @@ export default function PaceFormatterPage() {
     if (logoFile) {
       form.append("logo", logoFile);
     }
-    
-    const normalizedDate = normalizeDateToDDMMYYYY(formData.date);
+
     Object.entries(formData).forEach(([key, value]) => {
       form.append(key, key === "date" ? normalizedDate : value);
     });
@@ -271,8 +298,8 @@ export default function PaceFormatterPage() {
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="date" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Date (DD/MM/YYYY)</Label>
-                    <span className="text-[10px] text-muted-foreground">DD/MM/YYYY</span>
+                    <Label htmlFor="date" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Date (MM/DD/YYYY)</Label>
+                    <span className="text-[10px] text-muted-foreground">MM/DD/YYYY</span>
                   </div>
                   <Input 
                     id="date" 
@@ -282,10 +309,10 @@ export default function PaceFormatterPage() {
                     onChange={handleInputChange} 
                     onBlur={() => {
                       if (formData.date) {
-                        setFormData(prev => ({ ...prev, date: normalizeDateToDDMMYYYY(prev.date) }));
+                        setFormData(prev => ({ ...prev, date: normalizeDateToMMDDYYYY(prev.date) }));
                       }
                     }}
-                    placeholder="DD/MM/YYYY (e.g. 08/09/2025)" 
+                    placeholder="MM/DD/YYYY (e.g. 09/08/2025)" 
                     className="h-11 rounded-xl bg-background/50 border-border/50 focus-visible:ring-primary/50" 
                   />
                 </div>

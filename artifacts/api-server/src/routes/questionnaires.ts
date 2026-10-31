@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { requireAuth } from "../middlewares/requireAuth";
+import { requireRole } from "../middlewares/requireRole";
 import { supabase, type QuestionnaireRow } from "../lib/supabase";
 
 const router: IRouter = Router();
@@ -29,14 +30,18 @@ router.get("/questionnaires", requireAuth, async (req, res): Promise<void> => {
       return;
     }
 
-    res.json((data ?? []).map(mapRow));
+    // Never expose the legacy SYSTEM_CONFIG row (it historically held the admin password).
+    const visible = (data ?? []).filter(
+      (row: QuestionnaireRow) => row.client_name !== "SYSTEM_CONFIG"
+    );
+    res.json(visible.map(mapRow));
   } catch (err) {
     req.log.error({ err }, "List questionnaires error");
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-router.post("/questionnaires", requireAuth, async (req, res): Promise<void> => {
+router.post("/questionnaires", requireRole(["admin", "operator"]), async (req, res): Promise<void> => {
   try {
     const body = req.body as {
       clientName?: string;
@@ -46,8 +51,20 @@ router.post("/questionnaires", requireAuth, async (req, res): Promise<void> => {
       notes?: string | null;
     };
 
-    if (!body.clientName || !body.sector) {
+    if (
+      typeof body.clientName !== "string" ||
+      typeof body.sector !== "string" ||
+      !body.clientName.trim() ||
+      !body.sector.trim()
+    ) {
       res.status(400).json({ error: "clientName and sector are required" });
+      return;
+    }
+
+    // SYSTEM_CONFIG is a reserved marker (legacy admin-config row). Reject it so a user
+    // cannot create a row that list/detail reads hide and delete then 404s on.
+    if (body.clientName.trim().toUpperCase() === "SYSTEM_CONFIG") {
+      res.status(400).json({ error: "clientName 'SYSTEM_CONFIG' is reserved" });
       return;
     }
 
@@ -91,7 +108,7 @@ router.get("/questionnaires/:id", requireAuth, async (req, res): Promise<void> =
       .eq("id", id)
       .single();
 
-    if (error || !data) {
+    if (error || !data || (data as QuestionnaireRow).client_name === "SYSTEM_CONFIG") {
       res.status(404).json({ error: "Questionnaire not found" });
       return;
     }
@@ -103,12 +120,31 @@ router.get("/questionnaires/:id", requireAuth, async (req, res): Promise<void> =
   }
 });
 
-router.delete("/questionnaires/:id", requireAuth, async (req, res): Promise<void> => {
+router.delete("/questionnaires/:id", requireRole(["admin", "operator"]), async (req, res): Promise<void> => {
   try {
     const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const id = parseInt(rawId, 10);
     if (isNaN(id)) {
       res.status(400).json({ error: "Invalid ID" });
+      return;
+    }
+
+    // Never allow deleting the legacy SYSTEM_CONFIG row via this API.
+    const { data: target, error: lookupErr } = await supabase
+      .from("questionnaires")
+      .select("client_name")
+      .eq("id", id)
+      .maybeSingle();
+
+    // A lookup error is a server failure, not a missing row — don't mask it as 404.
+    if (lookupErr) {
+      req.log.error({ err: lookupErr }, "Failed to look up questionnaire before delete");
+      res.status(500).json({ error: "Database error" });
+      return;
+    }
+
+    if (!target || (target as { client_name: string }).client_name === "SYSTEM_CONFIG") {
+      res.status(404).json({ error: "Questionnaire not found" });
       return;
     }
 
