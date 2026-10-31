@@ -52,9 +52,10 @@ router.post("/auth/login", async (req, res): Promise<void> => {
       }
     }
 
-    // Auto-provision if user exists in Firebase Auth but missing in PostgreSQL users table
+    // Auto-provision if user exists in Firebase Auth but missing in PostgreSQL users table.
+    // Role is ALWAYS "user" here: admin is seeded only via ensureAdminUser, never derived from email.
     if (!user && cleanEmail) {
-      const defaultRole = cleanEmail === getAdminEmail() ? "admin" : "user";
+      const defaultRole = "user";
       const { data: newUser, error: autoErr } = await supabase
         .from("users")
         .upsert(
@@ -88,7 +89,8 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   }
 });
 
-// Public User Signup (Creates account with 'user' role & syncs to PostgreSQL)
+// Public User Signup: creates a NEW 'user' account only. Never takes over or
+// re-authenticates an existing account, and never grants admin/operator.
 router.post("/auth/signup", async (req, res): Promise<void> => {
   const { name, email, password } = req.body;
 
@@ -97,9 +99,28 @@ router.post("/auth/signup", async (req, res): Promise<void> => {
     return;
   }
 
+  if (typeof password !== "string" || password.length < 8) {
+    res.status(400).json({ error: "Password must be at least 8 characters" });
+    return;
+  }
+
   const cleanEmail = String(email).toLowerCase().trim();
 
   try {
+    // Reject if the account already exists in PostgreSQL (never hijack/overwrite it).
+    const { data: existingDbUser } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", cleanEmail)
+      .maybeSingle();
+
+    if (existingDbUser) {
+      res.status(400).json({ error: "An account with this email already exists." });
+      return;
+    }
+
+    // Create the Firebase Auth user; a pre-existing Firebase account is also rejected
+    // (we never look up and reuse an existing UID without a verified password).
     let firebaseUid = "";
     try {
       const fbUser = await firebaseAuth.createUser({
@@ -110,35 +131,26 @@ router.post("/auth/signup", async (req, res): Promise<void> => {
       firebaseUid = fbUser.uid;
     } catch (fbErr: any) {
       if (fbErr.code === "auth/email-already-exists") {
-        try {
-          const existingFbUser = await firebaseAuth.getUserByEmail(cleanEmail);
-          firebaseUid = existingFbUser.uid;
-        } catch {
-          res.status(400).json({ error: "An account with this email already exists in Firebase Auth." });
-          return;
-        }
-      } else {
-        throw fbErr;
+        res.status(400).json({ error: "An account with this email already exists." });
+        return;
       }
+      throw fbErr;
     }
 
-    // Upsert into Supabase PostgreSQL users table
+    // Insert a fresh PostgreSQL row. Public signups are ALWAYS role "user".
     const { data: dbUser, error: dbErr } = await supabase
       .from("users")
-      .upsert(
-        {
-          name: name || cleanEmail.split("@")[0] || "User",
-          email: cleanEmail,
-          role: cleanEmail === getAdminEmail() ? "admin" : "user",
-          firebase_uid: firebaseUid,
-        },
-        { onConflict: "email" }
-      )
+      .insert({
+        name: name || cleanEmail.split("@")[0] || "User",
+        email: cleanEmail,
+        role: "user",
+        firebase_uid: firebaseUid,
+      })
       .select()
       .single();
 
     if (dbErr || !dbUser) {
-      req.log.error({ dbErr }, "Database upsert error during signup");
+      req.log.error({ dbErr }, "Database insert error during signup");
       res.status(500).json({ error: "Failed to sync user account to database" });
       return;
     }
