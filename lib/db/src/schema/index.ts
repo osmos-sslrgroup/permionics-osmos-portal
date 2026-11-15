@@ -119,3 +119,25 @@ export const insertChatSchema = createInsertSchema(chatsTable);
 export const selectChatSchema = createSelectSchema(chatsTable);
 export type Chat = typeof chatsTable.$inferSelect;
 export type InsertChat = typeof chatsTable.$inferInsert;
+
+// 8. Technical Offers Table
+export const technicalOffersTable = pgTable("technical_offers", {
+  id: serial("id").primaryKey(),
+  enquiryDate: text("enquiry_date").notNull().default(""),
+  clientName: text("client_name").notNull(),
+  segment: text("segment").notNull(),
+  enquiryOwner: text("enquiry_owner").notNull().default(""),
+  proposalOwner: text("proposal_owner").notNull().default(""),
+  system: text("system").notNull().default(""),
+  capacity: text("capacity").notNull().default(""),
+  offerNumber: text("offer_number").notNull().unique(),
+  status: text("status").notNull().default("Submitted"),
+  notes: text("notes").default(""),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertTechnicalOfferSchema = createInsertSchema(technicalOffersTable);
+export const selectTechnicalOfferSchema = createSelectSchema(technicalOffersTable);
+export type TechnicalOffer = typeof technicalOffersTable.$inferSelect;
+export type InsertTechnicalOffer = typeof technicalOffersTable.$inferInsert;
