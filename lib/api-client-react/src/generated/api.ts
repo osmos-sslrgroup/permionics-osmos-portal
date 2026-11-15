@@ -22,6 +22,8 @@ import type {
 import type {
   ApiError,
   AuthStatus,
+  BatchTechnicalOfferInput,
+  BatchTechnicalOfferResponse,
   CaseStudy,
   CaseStudyInput,
   CaseStudyPatch,
@@ -31,9 +33,12 @@ import type {
   DashboardStats,
   HealthStatus,
   ListCaseStudiesParams,
+  ListTechnicalOffersParams,
   LoginInput,
   Questionnaire,
-  QuestionnaireInput
+  QuestionnaireInput,
+  TechnicalOffer,
+  TechnicalOfferInput
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -809,6 +814,452 @@ export const useDeleteCaseStudy = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getDeleteCaseStudyMutationOptions(options));
+    }
+
+export const getListTechnicalOffersUrl = (params?: ListTechnicalOffersParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/technical-offers?${stringifiedParams}` : `/api/technical-offers`
+}
+
+/**
+ * @summary List all technical offers with optional search and filters
+ */
+export const listTechnicalOffers = async (params?: ListTechnicalOffersParams, options?: RequestInit): Promise<TechnicalOffer[]> => {
+
+  return customFetch<TechnicalOffer[]>(getListTechnicalOffersUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListTechnicalOffersQueryKey = (params?: ListTechnicalOffersParams,) => {
+    return [
+    `/api/technical-offers`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListTechnicalOffersQueryOptions = <TData = Awaited<ReturnType<typeof listTechnicalOffers>>, TError = ErrorType<unknown>>(params?: ListTechnicalOffersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTechnicalOffers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListTechnicalOffersQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listTechnicalOffers>>> = ({ signal }) => listTechnicalOffers(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTechnicalOffers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListTechnicalOffersQueryResult = NonNullable<Awaited<ReturnType<typeof listTechnicalOffers>>>
+export type ListTechnicalOffersQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all technical offers with optional search and filters
+ */
+
+export function useListTechnicalOffers<TData = Awaited<ReturnType<typeof listTechnicalOffers>>, TError = ErrorType<unknown>>(
+ params?: ListTechnicalOffersParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listTechnicalOffers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListTechnicalOffersQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateTechnicalOfferUrl = () => {
+
+
+
+
+  return `/api/technical-offers`
+}
+
+/**
+ * @summary Create a new technical offer
+ */
+export const createTechnicalOffer = async (technicalOfferInput: TechnicalOfferInput, options?: RequestInit): Promise<TechnicalOffer> => {
+
+  return customFetch<TechnicalOffer>(getCreateTechnicalOfferUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(technicalOfferInput)
+  }
+);}
+
+
+
+
+
+export const getCreateTechnicalOfferMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTechnicalOffer>>, TError,{data: BodyType<TechnicalOfferInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTechnicalOffer>>, TError,{data: BodyType<TechnicalOfferInput>}, TContext> => {
+
+const mutationKey = ['createTechnicalOffer'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTechnicalOffer>>, {data: BodyType<TechnicalOfferInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createTechnicalOffer(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateTechnicalOfferMutationResult = NonNullable<Awaited<ReturnType<typeof createTechnicalOffer>>>
+    export type CreateTechnicalOfferMutationBody = BodyType<TechnicalOfferInput>
+    export type CreateTechnicalOfferMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a new technical offer
+ */
+export const useCreateTechnicalOffer = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTechnicalOffer>>, TError,{data: BodyType<TechnicalOfferInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createTechnicalOffer>>,
+        TError,
+        {data: BodyType<TechnicalOfferInput>},
+        TContext
+      > => {
+      return useMutation(getCreateTechnicalOfferMutationOptions(options));
+    }
+
+export const getGetTechnicalOfferUrl = (id: number,) => {
+
+
+
+
+  return `/api/technical-offers/${id}`
+}
+
+/**
+ * @summary Get a single technical offer by ID
+ */
+export const getTechnicalOffer = async (id: number, options?: RequestInit): Promise<TechnicalOffer> => {
+
+  return customFetch<TechnicalOffer>(getGetTechnicalOfferUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetTechnicalOfferQueryKey = (id: number,) => {
+    return [
+    `/api/technical-offers/${id}`
+    ] as const;
+    }
+
+
+export const getGetTechnicalOfferQueryOptions = <TData = Awaited<ReturnType<typeof getTechnicalOffer>>, TError = ErrorType<void>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTechnicalOffer>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetTechnicalOfferQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTechnicalOffer>>> = ({ signal }) => getTechnicalOffer(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTechnicalOffer>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetTechnicalOfferQueryResult = NonNullable<Awaited<ReturnType<typeof getTechnicalOffer>>>
+export type GetTechnicalOfferQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get a single technical offer by ID
+ */
+
+export function useGetTechnicalOffer<TData = Awaited<ReturnType<typeof getTechnicalOffer>>, TError = ErrorType<void>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getTechnicalOffer>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetTechnicalOfferQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateTechnicalOfferUrl = (id: number,) => {
+
+
+
+
+  return `/api/technical-offers/${id}`
+}
+
+/**
+ * @summary Update an existing technical offer
+ */
+export const updateTechnicalOffer = async (id: number,
+    technicalOfferInput: TechnicalOfferInput, options?: RequestInit): Promise<TechnicalOffer> => {
+
+  return customFetch<TechnicalOffer>(getUpdateTechnicalOfferUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(technicalOfferInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateTechnicalOfferMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTechnicalOffer>>, TError,{id: number;data: BodyType<TechnicalOfferInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateTechnicalOffer>>, TError,{id: number;data: BodyType<TechnicalOfferInput>}, TContext> => {
+
+const mutationKey = ['updateTechnicalOffer'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateTechnicalOffer>>, {id: number;data: BodyType<TechnicalOfferInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateTechnicalOffer(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateTechnicalOfferMutationResult = NonNullable<Awaited<ReturnType<typeof updateTechnicalOffer>>>
+    export type UpdateTechnicalOfferMutationBody = BodyType<TechnicalOfferInput>
+    export type UpdateTechnicalOfferMutationError = ErrorType<void>
+
+    /**
+ * @summary Update an existing technical offer
+ */
+export const useUpdateTechnicalOffer = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateTechnicalOffer>>, TError,{id: number;data: BodyType<TechnicalOfferInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateTechnicalOffer>>,
+        TError,
+        {id: number;data: BodyType<TechnicalOfferInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateTechnicalOfferMutationOptions(options));
+    }
+
+export const getDeleteTechnicalOfferUrl = (id: number,) => {
+
+
+
+
+  return `/api/technical-offers/${id}`
+}
+
+/**
+ * @summary Delete a technical offer
+ */
+export const deleteTechnicalOffer = async (id: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteTechnicalOfferUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteTechnicalOfferMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTechnicalOffer>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteTechnicalOffer>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['deleteTechnicalOffer'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteTechnicalOffer>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteTechnicalOffer(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteTechnicalOfferMutationResult = NonNullable<Awaited<ReturnType<typeof deleteTechnicalOffer>>>
+
+    export type DeleteTechnicalOfferMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a technical offer
+ */
+export const useDeleteTechnicalOffer = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTechnicalOffer>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteTechnicalOffer>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getDeleteTechnicalOfferMutationOptions(options));
+    }
+
+export const getBatchImportTechnicalOffersUrl = () => {
+
+
+
+
+  return `/api/technical-offers/batch`
+}
+
+/**
+ * @summary Batch import technical offers from CSV or JSON
+ */
+export const batchImportTechnicalOffers = async (batchTechnicalOfferInput: BatchTechnicalOfferInput, options?: RequestInit): Promise<BatchTechnicalOfferResponse> => {
+
+  return customFetch<BatchTechnicalOfferResponse>(getBatchImportTechnicalOffersUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(batchTechnicalOfferInput)
+  }
+);}
+
+
+
+
+
+export const getBatchImportTechnicalOffersMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof batchImportTechnicalOffers>>, TError,{data: BodyType<BatchTechnicalOfferInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof batchImportTechnicalOffers>>, TError,{data: BodyType<BatchTechnicalOfferInput>}, TContext> => {
+
+const mutationKey = ['batchImportTechnicalOffers'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof batchImportTechnicalOffers>>, {data: BodyType<BatchTechnicalOfferInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  batchImportTechnicalOffers(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type BatchImportTechnicalOffersMutationResult = NonNullable<Awaited<ReturnType<typeof batchImportTechnicalOffers>>>
+    export type BatchImportTechnicalOffersMutationBody = BodyType<BatchTechnicalOfferInput>
+    export type BatchImportTechnicalOffersMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Batch import technical offers from CSV or JSON
+ */
+export const useBatchImportTechnicalOffers = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof batchImportTechnicalOffers>>, TError,{data: BodyType<BatchTechnicalOfferInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof batchImportTechnicalOffers>>,
+        TError,
+        {data: BodyType<BatchTechnicalOfferInput>},
+        TContext
+      > => {
+      return useMutation(getBatchImportTechnicalOffersMutationOptions(options));
     }
 
 export const getListQuestionnairesUrl = () => {

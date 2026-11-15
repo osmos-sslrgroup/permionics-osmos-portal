@@ -14,6 +14,8 @@ tags:
     description: Authentication
   - name: case-studies
     description: Case Study Library
+  - name: technical-offers
+    description: Technical Offers management
   - name: questionnaires
     description: Questionnaire Builder
   - name: chat
@@ -215,6 +217,139 @@ paths:
       responses:
         "204":
           description: Deleted
+
+  /technical-offers:
+    get:
+      operationId: listTechnicalOffers
+      tags: [technical-offers]
+      summary: List all technical offers with optional search and filters
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: segment
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: system
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of technical offers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TechnicalOffer"
+    post:
+      operationId: createTechnicalOffer
+      tags: [technical-offers]
+      summary: Create a new technical offer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TechnicalOfferInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TechnicalOffer"
+
+  /technical-offers/{id}:
+    get:
+      operationId: getTechnicalOffer
+      tags: [technical-offers]
+      summary: Get a single technical offer by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Technical offer detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TechnicalOffer"
+        "404":
+          description: Not found
+    put:
+      operationId: updateTechnicalOffer
+      tags: [technical-offers]
+      summary: Update an existing technical offer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TechnicalOfferInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TechnicalOffer"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteTechnicalOffer
+      tags: [technical-offers]
+      summary: Delete a technical offer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+
+  /technical-offers/batch:
+    post:
+      operationId: batchImportTechnicalOffers
+      tags: [technical-offers]
+      summary: Batch import technical offers from CSV or JSON
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BatchTechnicalOfferInput"
+      responses:
+        "200":
+          description: Import result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchTechnicalOfferResponse"
 
   /questionnaires:
     get:
@@ -613,3 +748,82 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ChatSource"
+
+    TechnicalOffer:
+      type: object
+      required: [id, enquiryDate, clientName, segment, enquiryOwner, proposalOwner, system, capacity, offerNumber, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        enquiryDate:
+          type: string
+        clientName:
+          type: string
+        segment:
+          type: string
+        enquiryOwner:
+          type: string
+        proposalOwner:
+          type: string
+        system:
+          type: string
+        capacity:
+          type: string
+        offerNumber:
+          type: string
+        status:
+          type: string
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    TechnicalOfferInput:
+      type: object
+      required: [clientName, segment, offerNumber]
+      properties:
+        enquiryDate:
+          type: string
+        clientName:
+          type: string
+        segment:
+          type: string
+        enquiryOwner:
+          type: string
+        proposalOwner:
+          type: string
+        system:
+          type: string
+        capacity:
+          type: string
+        offerNumber:
+          type: string
+        status:
+          type: string
+        notes:
+          type: string
+
+    BatchTechnicalOfferInput:
+      type: object
+      required: [offers]
+      properties:
+        offers:
+          type: array
+          items:
+            $ref: "#/components/schemas/TechnicalOfferInput"
+
+    BatchTechnicalOfferResponse:
+      type: object
+      required: [inserted, count]
+      properties:
+        inserted:
+          type: integer
+        count:
+          type: integer
+        errors:
+          type: array
+          items:
+            type: string
+
