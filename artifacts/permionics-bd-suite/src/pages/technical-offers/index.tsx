@@ -93,6 +93,16 @@ function getStatusBadge(status: string) {
   return <Badge className="bg-sky-500/15 text-sky-700 border-sky-300 dark:text-sky-400 dark:border-sky-700">Submitted</Badge>;
 }
 
+function normalizeStatus(val: string): string {
+  const s = val.trim().toLowerCase();
+  if (s === "won") return "Won";
+  if (s === "lost") return "Lost";
+  if (s === "in review" || s === "in-review" || s === "review") return "In Review";
+  if (s === "draft") return "Draft";
+  if (s === "submitted") return "Submitted";
+  return val.trim();
+}
+
 export default function TechnicalOffersPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -217,14 +227,15 @@ export default function TechnicalOffersPage() {
       return;
     }
 
+    const targetOffer = editingOffer;
     try {
-      if (editingOffer) {
+      if (targetOffer) {
         await updateMutation.mutateAsync({
-          id: editingOffer.id,
+          id: targetOffer.id,
           data: formData,
         });
         toast({ title: "Updated", description: `Offer ${formData.offerNumber} updated successfully.` });
-        setEditingOffer(null);
+        setEditingOffer((current) => (current?.id === targetOffer.id ? null : current));
       } else {
         await createMutation.mutateAsync({
           data: formData,
@@ -257,27 +268,82 @@ export default function TechnicalOffersPage() {
     }
   };
 
-  // CSV Parsing helper
-  const parseCSVContent = (text: string) => {
-    const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
-    if (lines.length < 2) return [];
+  // RFC 4180 CSV Parsing helpers
+  const parseCSVRows = (text: string): string[][] => {
+    const rows: string[][] = [];
+    let currentRow: string[] = [];
+    let currentField = "";
+    let inQuotes = false;
 
-    // Find the header row (skip leading blank rows like ,,,,,,,,)
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      const nextChar = text[i + 1];
+
+      if (inQuotes) {
+        if (char === '"' && nextChar === '"') {
+          currentField += '"';
+          i++;
+        } else if (char === '"') {
+          inQuotes = false;
+        } else {
+          currentField += char;
+        }
+      } else {
+        if (char === '"') {
+          inQuotes = true;
+        } else if (char === ",") {
+          currentRow.push(currentField.trim());
+          currentField = "";
+        } else if (char === "\r") {
+          if (nextChar === "\n") i++;
+          currentRow.push(currentField.trim());
+          if (currentRow.some((f) => f.length > 0)) {
+            rows.push(currentRow);
+          }
+          currentRow = [];
+          currentField = "";
+        } else if (char === "\n") {
+          currentRow.push(currentField.trim());
+          if (currentRow.some((f) => f.length > 0)) {
+            rows.push(currentRow);
+          }
+          currentRow = [];
+          currentField = "";
+        } else {
+          currentField += char;
+        }
+      }
+    }
+
+    if (currentField.length > 0 || currentRow.length > 0) {
+      currentRow.push(currentField.trim());
+      if (currentRow.some((f) => f.length > 0)) {
+        rows.push(currentRow);
+      }
+    }
+
+    return rows;
+  };
+
+  const parseCSVContent = (text: string) => {
+    const rows = parseCSVRows(text);
+    if (rows.length < 2) return [];
+
+    // Find the header row (skip leading blank or comma-only rows)
     let headerRowIdx = 0;
-    while (headerRowIdx < lines.length) {
-      const line = lines[headerRowIdx];
-      const cells = line.split(",").map((c) => c.trim().toLowerCase());
+    while (headerRowIdx < rows.length) {
+      const cells = rows[headerRowIdx].map((c) => c.toLowerCase());
       if (cells.some((c) => c.includes("offer number") || c.includes("client name") || c.includes("enquiry date"))) {
         break;
       }
       headerRowIdx++;
     }
 
-    if (headerRowIdx >= lines.length) {
+    if (headerRowIdx >= rows.length) {
       headerRowIdx = 0;
     }
 
-    const headerCells = lines[headerRowIdx].split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
+    const headerCells = rows[headerRowIdx];
     const colMap: Record<string, number> = {};
     headerCells.forEach((h, idx) => {
       const lower = h.toLowerCase().trim();
@@ -294,43 +360,25 @@ export default function TechnicalOffersPage() {
     });
 
     const parsed: TechnicalOfferInput[] = [];
-    for (let i = headerRowIdx + 1; i < lines.length; i++) {
-      const rawLine = lines[i];
-      if (!rawLine.trim()) continue;
-      
-      // Basic comma split respecting quoted commas
-      const cells: string[] = [];
-      let current = "";
-      let inQuote = false;
-      for (let c = 0; c < rawLine.length; c++) {
-        const char = rawLine[c];
-        if (char === '"' || char === "'") {
-          inQuote = !inQuote;
-        } else if (char === "," && !inQuote) {
-          cells.push(current.trim().replace(/^"|"$/g, ""));
-          current = "";
-        } else {
-          current += char;
-        }
-      }
-      cells.push(current.trim().replace(/^"|"$/g, ""));
-
-      const clientName = colMap["clientName"] !== undefined ? cells[colMap["clientName"]] || "" : "";
-      const segment = colMap["segment"] !== undefined ? cells[colMap["segment"]] || "" : "";
-      const offerNumber = colMap["offerNumber"] !== undefined ? cells[colMap["offerNumber"]] || "" : "";
+    for (let i = headerRowIdx + 1; i < rows.length; i++) {
+      const cells = rows[i];
+      const clientName = colMap["clientName"] !== undefined ? (cells[colMap["clientName"]] || "") : "";
+      const segment = colMap["segment"] !== undefined ? (cells[colMap["segment"]] || "") : "";
+      const offerNumber = colMap["offerNumber"] !== undefined ? (cells[colMap["offerNumber"]] || "") : "";
 
       if (clientName || offerNumber) {
+        const rawStatus = colMap["status"] !== undefined ? cells[colMap["status"]] : "";
         parsed.push({
-          enquiryDate: colMap["enquiryDate"] !== undefined ? cells[colMap["enquiryDate"]] || "" : "",
+          enquiryDate: colMap["enquiryDate"] !== undefined ? (cells[colMap["enquiryDate"]] || "") : "",
           clientName: clientName || "Unknown Client",
           segment: segment || "Industrial",
-          enquiryOwner: colMap["enquiryOwner"] !== undefined ? cells[colMap["enquiryOwner"]] || "" : "",
-          proposalOwner: colMap["proposalOwner"] !== undefined ? cells[colMap["proposalOwner"]] || "" : "",
-          system: colMap["system"] !== undefined ? cells[colMap["system"]] || "" : "",
-          capacity: colMap["capacity"] !== undefined ? cells[colMap["capacity"]] || "" : "",
+          enquiryOwner: colMap["enquiryOwner"] !== undefined ? (cells[colMap["enquiryOwner"]] || "") : "",
+          proposalOwner: colMap["proposalOwner"] !== undefined ? (cells[colMap["proposalOwner"]] || "") : "",
+          system: colMap["system"] !== undefined ? (cells[colMap["system"]] || "") : "",
+          capacity: colMap["capacity"] !== undefined ? (cells[colMap["capacity"]] || "") : "",
           offerNumber: offerNumber || `PERM/AUTO/${Date.now()}-${i}`,
-          status: colMap["status"] !== undefined ? cells[colMap["status"]] || "Submitted" : "Submitted",
-          notes: colMap["notes"] !== undefined ? cells[colMap["notes"]] || "" : "",
+          status: rawStatus ? normalizeStatus(rawStatus) : "Submitted",
+          notes: colMap["notes"] !== undefined ? (cells[colMap["notes"]] || "") : "",
         });
       }
     }
@@ -341,11 +389,17 @@ export default function TechnicalOffersPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Reset previous payload immediately before reading the replacement file
+    setCsvParsedOffers([]);
+    setCsvPreviewRows([]);
+
     const reader = new FileReader();
     reader.onload = (event) => {
       const content = event.target?.result as string;
       const parsed = parseCSVContent(content);
       if (parsed.length === 0) {
+        setCsvParsedOffers([]);
+        setCsvPreviewRows([]);
         toast({
           title: "No Valid Rows Found",
           description: "Please check your CSV format and column headers.",
@@ -388,6 +442,19 @@ export default function TechnicalOffersPage() {
     }
   };
 
+  // CSV Blob Download Helper
+  const downloadCsvBlob = (content: string, filename: string) => {
+    const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   // CSV Export & Template Generators
   const handleExportCSV = () => {
     if (offers.length === 0) {
@@ -397,7 +464,7 @@ export default function TechnicalOffersPage() {
 
     const headers = ["Enquiry Date", "Client Name", "Segment", "Enquiry Owner", "Proposal Owner", "System", "Capacity", "Offer Number", "Status", "Notes"];
     const rows = offers.map((o) => [
-      `"${o.enquiryDate || ""}"`,
+      `"${(o.enquiryDate || "").replace(/"/g, '""')}"`,
       `"${o.clientName.replace(/"/g, '""')}"`,
       `"${o.segment.replace(/"/g, '""')}"`,
       `"${(o.enquiryOwner || "").replace(/"/g, '""')}"`,
@@ -409,27 +476,15 @@ export default function TechnicalOffersPage() {
       `"${(o.notes || "").replace(/"/g, '""')}"`,
     ]);
 
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `technical_offers_export_${new Date().toISOString().split("T")[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    downloadCsvBlob(csvContent, `technical_offers_export_${new Date().toISOString().split("T")[0]}.csv`);
   };
 
   const handleDownloadTemplate = () => {
     const headers = ["Enquiry Date", "Client Name", "Segment", "Enquiry Owner", "Proposal Owner", "System", "Capacity ", "Offer Number"];
     const sampleRow = ["2026-03-15", "Acme Pharmaceuticals", "Pharma", "Rajesh Sharma", "Amit Patel", "UF + 2-Pass RO", "50 m3/day", "PERM/2026/TO-0201"];
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), sampleRow.join(",")].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "technical_offers_template.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const csvContent = [headers.join(","), sampleRow.join(",")].join("\n");
+    downloadCsvBlob(csvContent, "technical_offers_template.csv");
   };
 
   const resetFilters = () => {
@@ -598,6 +653,19 @@ export default function TechnicalOffersPage() {
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
             <p className="text-sm font-medium text-muted-foreground">Loading technical offers...</p>
           </div>
+        ) : offersQuery.isError ? (
+          <div className="flex flex-col items-center justify-center p-16 text-center space-y-3">
+            <div className="w-14 h-14 rounded-full bg-destructive/10 flex items-center justify-center text-destructive">
+              <AlertCircle className="w-7 h-7" />
+            </div>
+            <h3 className="text-lg font-bold">Failed to Load Technical Offers</h3>
+            <p className="text-sm text-muted-foreground max-w-sm">
+              An error occurred while communicating with the server. Please check your connection and try again.
+            </p>
+            <Button variant="outline" size="sm" onClick={() => offersQuery.refetch()}>
+              Retry
+            </Button>
+          </div>
         ) : offers.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-16 text-center space-y-3">
             <div className="w-14 h-14 rounded-full bg-muted/40 flex items-center justify-center text-muted-foreground">
@@ -742,8 +810,9 @@ export default function TechnicalOffersPage() {
           <form onSubmit={handleSubmitSave} className="space-y-4 pt-2">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Offer Number *</label>
+                <label htmlFor="offer-number-input" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Offer Number *</label>
                 <Input
+                  id="offer-number-input"
                   required
                   placeholder="e.g. PERM/2026/TO-0150"
                   value={formData.offerNumber}
@@ -752,8 +821,9 @@ export default function TechnicalOffersPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Enquiry Date</label>
+                <label htmlFor="enquiry-date-input" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Enquiry Date</label>
                 <Input
+                  id="enquiry-date-input"
                   type="date"
                   value={formData.enquiryDate}
                   onChange={(e) => setFormData({ ...formData, enquiryDate: e.target.value })}
@@ -762,8 +832,9 @@ export default function TechnicalOffersPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Client Name *</label>
+              <label htmlFor="client-name-input" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Client Name *</label>
               <Input
+                id="client-name-input"
                 required
                 placeholder="e.g. Waaree Energies Ltd."
                 value={formData.clientName}
@@ -773,8 +844,9 @@ export default function TechnicalOffersPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Segment / Sector *</label>
+                <label htmlFor="segment-input" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Segment / Sector *</label>
                 <Input
+                  id="segment-input"
                   required
                   placeholder="e.g. Pharma, CETP, Solar"
                   value={formData.segment}
@@ -783,9 +855,9 @@ export default function TechnicalOffersPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Status</label>
+                <label htmlFor="status-select-trigger" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Status</label>
                 <Select value={formData.status} onValueChange={(val) => setFormData({ ...formData, status: val })}>
-                  <SelectTrigger>
+                  <SelectTrigger id="status-select-trigger">
                     <SelectValue placeholder="Select Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -801,8 +873,9 @@ export default function TechnicalOffersPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">System / Technology</label>
+                <label htmlFor="system-input" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">System / Technology</label>
                 <Input
+                  id="system-input"
                   placeholder="e.g. UF + 2-Pass RO"
                   value={formData.system}
                   onChange={(e) => setFormData({ ...formData, system: e.target.value })}
@@ -810,8 +883,9 @@ export default function TechnicalOffersPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Capacity</label>
+                <label htmlFor="capacity-input" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Capacity</label>
                 <Input
+                  id="capacity-input"
                   placeholder="e.g. 50 m3/day"
                   value={formData.capacity}
                   onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
@@ -821,8 +895,9 @@ export default function TechnicalOffersPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Enquiry Owner (Sales)</label>
+                <label htmlFor="enquiry-owner-input" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Enquiry Owner (Sales)</label>
                 <Input
+                  id="enquiry-owner-input"
                   placeholder="e.g. Rajesh Sharma"
                   value={formData.enquiryOwner}
                   onChange={(e) => setFormData({ ...formData, enquiryOwner: e.target.value })}
@@ -830,8 +905,9 @@ export default function TechnicalOffersPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Proposal Owner (Engineer)</label>
+                <label htmlFor="proposal-owner-input" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Proposal Owner (Engineer)</label>
                 <Input
+                  id="proposal-owner-input"
                   placeholder="e.g. Amit Patel"
                   value={formData.proposalOwner}
                   onChange={(e) => setFormData({ ...formData, proposalOwner: e.target.value })}
@@ -840,8 +916,9 @@ export default function TechnicalOffersPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Notes / Scope of Work</label>
+              <label htmlFor="notes-input" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Notes / Scope of Work</label>
               <Input
+                id="notes-input"
                 placeholder="Brief technical description or requirements..."
                 value={formData.notes || ""}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
@@ -908,9 +985,10 @@ export default function TechnicalOffersPage() {
           </DialogHeader>
 
           <div className="space-y-4 pt-2">
-            <div 
+            <button 
+              type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-border/80 hover:border-primary/50 hover:bg-primary/5 p-8 rounded-xl text-center cursor-pointer transition-colors"
+              className="w-full border-2 border-dashed border-border/80 hover:border-primary/50 hover:bg-primary/5 p-8 rounded-xl text-center cursor-pointer transition-colors block"
             >
               <input
                 type="file"
@@ -922,7 +1000,7 @@ export default function TechnicalOffersPage() {
               <FileSpreadsheet className="w-10 h-10 mx-auto text-primary/70 mb-3" />
               <div className="text-sm font-bold">Click to select CSV spreadsheet</div>
               <div className="text-xs text-muted-foreground mt-1">Columns will be automatically mapped and trimmed</div>
-            </div>
+            </button>
 
             {csvPreviewRows.length > 0 && (
               <div className="space-y-2">

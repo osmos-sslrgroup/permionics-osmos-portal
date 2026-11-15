@@ -22,6 +22,16 @@ export interface TechnicalOfferRow {
   updated_at: string;
 }
 
+function normalizeStatus(val: string): string {
+  const s = val.trim().toLowerCase();
+  if (s === "won") return "Won";
+  if (s === "lost") return "Lost";
+  if (s === "in review" || s === "in-review" || s === "review") return "In Review";
+  if (s === "draft") return "Draft";
+  if (s === "submitted") return "Submitted";
+  return val.trim();
+}
+
 function mapOfferRow(row: any) {
   return {
     id: Number(row.id),
@@ -179,8 +189,10 @@ router.post("/technical-offers", requireRole(["admin", "operator"]), async (req,
       system: (body.system || "").trim(),
       capacity: (body.capacity || "").trim(),
       offer_number: cleanOfferNumber,
-      status: (body.status || "Submitted").trim(),
+      status: normalizeStatus((body.status || "Submitted").trim()),
       notes: (body.notes || "").trim(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
 
     const { data, error } = await supabase
@@ -226,26 +238,53 @@ router.put("/technical-offers/:id", requireRole(["admin", "operator"]), async (r
 
     const updatePayload: Record<string, any> = {};
     if (body.enquiryDate !== undefined) updatePayload.enquiry_date = body.enquiryDate.trim();
-    if (body.clientName !== undefined) updatePayload.client_name = body.clientName.trim();
-    if (body.segment !== undefined) updatePayload.segment = body.segment.trim();
+    if (body.clientName !== undefined) {
+      const trimmed = body.clientName.trim();
+      if (!trimmed) {
+        res.status(400).json({ error: "clientName cannot be blank" });
+        return;
+      }
+      updatePayload.client_name = trimmed;
+    }
+    if (body.segment !== undefined) {
+      const trimmed = body.segment.trim();
+      if (!trimmed) {
+        res.status(400).json({ error: "segment cannot be blank" });
+        return;
+      }
+      updatePayload.segment = trimmed;
+    }
     if (body.enquiryOwner !== undefined) updatePayload.enquiry_owner = body.enquiryOwner.trim();
     if (body.proposalOwner !== undefined) updatePayload.proposal_owner = body.proposalOwner.trim();
     if (body.system !== undefined) updatePayload.system = body.system.trim();
     if (body.capacity !== undefined) updatePayload.capacity = body.capacity.trim();
-    if (body.offerNumber !== undefined) updatePayload.offer_number = body.offerNumber.trim();
-    if (body.status !== undefined) updatePayload.status = body.status.trim();
+    if (body.offerNumber !== undefined) {
+      const trimmed = body.offerNumber.trim();
+      if (!trimmed) {
+        res.status(400).json({ error: "offerNumber cannot be blank" });
+        return;
+      }
+      updatePayload.offer_number = trimmed;
+    }
+    if (body.status !== undefined) updatePayload.status = normalizeStatus(body.status);
     if (body.notes !== undefined) updatePayload.notes = body.notes.trim();
+    updatePayload.updated_at = new Date().toISOString();
 
     const { data, error } = await supabase
       .from("technical_offers")
-      .update(updatePayload)
       .eq("id", id)
+      .update(updatePayload)
       .select()
       .single();
 
     if (error) {
       req.log.error({ err: error }, "Failed to update technical offer");
       res.status(500).json({ error: "Failed to update technical offer" });
+      return;
+    }
+
+    if (!data) {
+      res.status(404).json({ error: "Technical offer not found" });
       return;
     }
 
@@ -267,8 +306,8 @@ router.delete("/technical-offers/:id", requireRole(["admin", "operator"]), async
 
     const { error } = await supabase
       .from("technical_offers")
-      .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .delete();
 
     if (error) {
       req.log.error({ err: error }, "Failed to delete technical offer");
@@ -298,6 +337,11 @@ router.post("/technical-offers/batch", requireRole(["admin", "operator"]), async
 
     for (let i = 0; i < offers.length; i++) {
       const item = offers[i];
+      if (!item || typeof item !== "object") {
+        errors.push(`Row ${i + 1}: Invalid item payload`);
+        continue;
+      }
+
       const clientName = (item.clientName || item["Client Name"] || "").toString().trim();
       const segment = (item.segment || item["Segment"] || "").toString().trim();
       const offerNumber = (item.offerNumber || item["Offer Number"] || "").toString().trim();
@@ -307,18 +351,47 @@ router.post("/technical-offers/batch", requireRole(["admin", "operator"]), async
         continue;
       }
 
-      const row = {
-        enquiry_date: (item.enquiryDate || item["Enquiry Date"] || "").toString().trim(),
+      const row: Record<string, any> = {
         client_name: clientName,
         segment: segment,
-        enquiry_owner: (item.enquiryOwner || item["Enquiry Owner"] || "").toString().trim(),
-        proposal_owner: (item.proposalOwner || item["Proposal Owner"] || "").toString().trim(),
-        system: (item.system || item["System"] || "").toString().trim(),
-        capacity: (item.capacity || item["Capacity"] || item["Capacity "] || "").toString().trim(),
         offer_number: offerNumber,
-        status: (item.status || item["Status"] || "Submitted").toString().trim(),
-        notes: (item.notes || item["Notes"] || "").toString().trim(),
+        updated_at: new Date().toISOString(),
       };
+
+      const enquiryDate = item.enquiryDate !== undefined ? item.enquiryDate : item["Enquiry Date"];
+      if (enquiryDate !== undefined && enquiryDate !== null) {
+        row.enquiry_date = String(enquiryDate).trim();
+      }
+
+      const enquiryOwner = item.enquiryOwner !== undefined ? item.enquiryOwner : item["Enquiry Owner"];
+      if (enquiryOwner !== undefined && enquiryOwner !== null) {
+        row.enquiry_owner = String(enquiryOwner).trim();
+      }
+
+      const proposalOwner = item.proposalOwner !== undefined ? item.proposalOwner : item["Proposal Owner"];
+      if (proposalOwner !== undefined && proposalOwner !== null) {
+        row.proposal_owner = String(proposalOwner).trim();
+      }
+
+      const system = item.system !== undefined ? item.system : item["System"];
+      if (system !== undefined && system !== null) {
+        row.system = String(system).trim();
+      }
+
+      const capacity = item.capacity !== undefined ? item.capacity : (item["Capacity"] !== undefined ? item["Capacity"] : item["Capacity "]);
+      if (capacity !== undefined && capacity !== null) {
+        row.capacity = String(capacity).trim();
+      }
+
+      const rawStatus = item.status !== undefined ? item.status : item["Status"];
+      if (rawStatus !== undefined && rawStatus !== null && String(rawStatus).trim()) {
+        row.status = normalizeStatus(String(rawStatus));
+      }
+
+      const notes = item.notes !== undefined ? item.notes : item["Notes"];
+      if (notes !== undefined && notes !== null) {
+        row.notes = String(notes).trim();
+      }
 
       try {
         const { error } = await supabase.from("technical_offers").upsert(row, { onConflict: "offer_number" });
