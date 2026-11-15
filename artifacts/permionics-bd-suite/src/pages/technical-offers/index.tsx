@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef } from "react";
+import * as XLSX from "xlsx";
 import { 
   useListTechnicalOffers, 
   useCreateTechnicalOffer, 
@@ -30,6 +31,12 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import {
   Table,
   TableHeader,
   TableRow,
@@ -53,7 +60,8 @@ import {
   Calendar,
   AlertCircle,
   CheckCircle2,
-  FilterX
+  FilterX,
+  ChevronDown
 } from "lucide-react";
 
 function getSegmentBadgeColor(segment: string) {
@@ -325,15 +333,23 @@ export default function TechnicalOffersPage() {
     return rows;
   };
 
-  const parseCSVContent = (text: string) => {
-    const rows = parseCSVRows(text);
+  const parseRowsToOffers = (rows: string[][]): TechnicalOfferInput[] => {
     if (rows.length < 2) return [];
 
     // Find the header row (skip leading blank or comma-only rows)
     let headerRowIdx = 0;
     while (headerRowIdx < rows.length) {
-      const cells = rows[headerRowIdx].map((c) => c.toLowerCase());
-      if (cells.some((c) => c.includes("offer number") || c.includes("client name") || c.includes("enquiry date"))) {
+      const cells = rows[headerRowIdx].map((c) => String(c || "").toLowerCase().trim());
+      if (
+        cells.some(
+          (c) =>
+            c.includes("offer number") ||
+            c.includes("offer no") ||
+            c.includes("client") ||
+            c.includes("enquiry date") ||
+            c.includes("inquiry date")
+        )
+      ) {
         break;
       }
       headerRowIdx++;
@@ -343,42 +359,45 @@ export default function TechnicalOffersPage() {
       headerRowIdx = 0;
     }
 
-    const headerCells = rows[headerRowIdx];
+    const headerCells = rows[headerRowIdx] || [];
     const colMap: Record<string, number> = {};
     headerCells.forEach((h, idx) => {
-      const lower = h.toLowerCase().trim();
-      if (lower.includes("enquiry date")) colMap["enquiryDate"] = idx;
-      else if (lower.includes("client name") || lower === "client") colMap["clientName"] = idx;
-      else if (lower.includes("segment") || lower.includes("sector")) colMap["segment"] = idx;
-      else if (lower.includes("enquiry owner")) colMap["enquiryOwner"] = idx;
-      else if (lower.includes("proposal owner")) colMap["proposalOwner"] = idx;
+      const lower = String(h || "").toLowerCase().trim();
+      if (lower.includes("enquiry date") || lower.includes("inquiry date") || lower === "date") colMap["enquiryDate"] = idx;
+      else if (lower.includes("client") || lower.includes("customer")) colMap["clientName"] = idx;
+      else if (lower.includes("segment") || lower.includes("sector") || lower.includes("industry")) colMap["segment"] = idx;
+      else if (lower.includes("enquiry owner") || lower.includes("enq owner")) colMap["enquiryOwner"] = idx;
+      else if (lower.includes("proposal owner") || lower.includes("prop owner")) colMap["proposalOwner"] = idx;
       else if (lower.includes("system") || lower.includes("technology")) colMap["system"] = idx;
       else if (lower.includes("capacity")) colMap["capacity"] = idx;
-      else if (lower.includes("offer number") || lower.includes("offer no")) colMap["offerNumber"] = idx;
-      else if (lower.includes("status")) colMap["status"] = idx;
-      else if (lower.includes("notes")) colMap["notes"] = idx;
+      else if (lower.includes("offer number") || lower.includes("offer no") || lower.includes("proposal no") || lower.includes("quote no")) colMap["offerNumber"] = idx;
+      else if (lower.includes("status") || lower.includes("stage")) colMap["status"] = idx;
+      else if (lower.includes("notes") || lower.includes("remark") || lower.includes("scope")) colMap["notes"] = idx;
+      else if (lower === "owner" && colMap["enquiryOwner"] === undefined) colMap["enquiryOwner"] = idx;
     });
 
     const parsed: TechnicalOfferInput[] = [];
     for (let i = headerRowIdx + 1; i < rows.length; i++) {
       const cells = rows[i];
-      const clientName = colMap["clientName"] !== undefined ? (cells[colMap["clientName"]] || "") : "";
-      const segment = colMap["segment"] !== undefined ? (cells[colMap["segment"]] || "") : "";
-      const offerNumber = colMap["offerNumber"] !== undefined ? (cells[colMap["offerNumber"]] || "") : "";
+      if (!cells || cells.length === 0) continue;
+
+      const clientName = colMap["clientName"] !== undefined ? String(cells[colMap["clientName"]] || "").trim() : "";
+      const segment = colMap["segment"] !== undefined ? String(cells[colMap["segment"]] || "").trim() : "";
+      const offerNumber = colMap["offerNumber"] !== undefined ? String(cells[colMap["offerNumber"]] || "").trim() : "";
 
       if (clientName || offerNumber) {
-        const rawStatus = colMap["status"] !== undefined ? cells[colMap["status"]] : "";
+        const rawStatus = colMap["status"] !== undefined ? String(cells[colMap["status"]] || "").trim() : "";
         parsed.push({
-          enquiryDate: colMap["enquiryDate"] !== undefined ? (cells[colMap["enquiryDate"]] || "") : "",
+          enquiryDate: colMap["enquiryDate"] !== undefined ? String(cells[colMap["enquiryDate"]] || "").trim() : "",
           clientName: clientName || "Unknown Client",
           segment: segment || "Industrial",
-          enquiryOwner: colMap["enquiryOwner"] !== undefined ? (cells[colMap["enquiryOwner"]] || "") : "",
-          proposalOwner: colMap["proposalOwner"] !== undefined ? (cells[colMap["proposalOwner"]] || "") : "",
-          system: colMap["system"] !== undefined ? (cells[colMap["system"]] || "") : "",
-          capacity: colMap["capacity"] !== undefined ? (cells[colMap["capacity"]] || "") : "",
+          enquiryOwner: colMap["enquiryOwner"] !== undefined ? String(cells[colMap["enquiryOwner"]] || "").trim() : "",
+          proposalOwner: colMap["proposalOwner"] !== undefined ? String(cells[colMap["proposalOwner"]] || "").trim() : "",
+          system: colMap["system"] !== undefined ? String(cells[colMap["system"]] || "").trim() : "",
+          capacity: colMap["capacity"] !== undefined ? String(cells[colMap["capacity"]] || "").trim() : "",
           offerNumber: offerNumber || `PERM/AUTO/${Date.now()}-${i}`,
           status: rawStatus ? normalizeStatus(rawStatus) : "Submitted",
-          notes: colMap["notes"] !== undefined ? (cells[colMap["notes"]] || "") : "",
+          notes: colMap["notes"] !== undefined ? String(cells[colMap["notes"]] || "").trim() : "",
         });
       }
     }
@@ -393,24 +412,90 @@ export default function TechnicalOffersPage() {
     setCsvParsedOffers([]);
     setCsvPreviewRows([]);
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
-      const parsed = parseCSVContent(content);
-      if (parsed.length === 0) {
-        setCsvParsedOffers([]);
-        setCsvPreviewRows([]);
-        toast({
-          title: "No Valid Rows Found",
-          description: "Please check your CSV format and column headers.",
-          variant: "destructive",
-        });
-        return;
-      }
-      setCsvParsedOffers(parsed);
-      setCsvPreviewRows(parsed.slice(0, 4));
-    };
-    reader.readAsText(file);
+    const fileName = file.name.toLowerCase();
+    const isExcel = fileName.endsWith(".xlsx") || fileName.endsWith(".xls");
+
+    if (isExcel) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const buffer = event.target?.result as ArrayBuffer;
+          const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
+          const targetSheetName =
+            workbook.SheetNames.find((n) => /enquir|offer|proposal|data/i.test(n)) || workbook.SheetNames[0];
+
+          if (!targetSheetName || !workbook.Sheets[targetSheetName]) {
+            toast({
+              title: "Empty Workbook",
+              description: "The uploaded Excel file contains no readable worksheets.",
+              variant: "destructive",
+            });
+            return;
+          }
+
+          const worksheet = workbook.Sheets[targetSheetName];
+          const rawRows = XLSX.utils.sheet_to_json(worksheet, {
+            header: 1,
+            raw: false,
+            dateNF: "yyyy-mm-dd",
+            defval: "",
+          }) as any[][];
+
+          const rows: string[][] = rawRows.map((r) =>
+            Array.isArray(r) ? r.map((cell) => (cell == null ? "" : String(cell).trim())) : []
+          );
+
+          const parsed = parseRowsToOffers(rows);
+          if (parsed.length === 0) {
+            setCsvParsedOffers([]);
+            setCsvPreviewRows([]);
+            toast({
+              title: "No Valid Rows Found",
+              description: "Please check your Excel spreadsheet columns and data.",
+              variant: "destructive",
+            });
+            return;
+          }
+          setCsvParsedOffers(parsed);
+          setCsvPreviewRows(parsed.slice(0, 4));
+        } catch (err: any) {
+          toast({
+            title: "Excel Parsing Error",
+            description: err?.message || "Failed to parse Excel spreadsheet.",
+            variant: "destructive",
+          });
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const content = event.target?.result as string;
+          const rows = parseCSVRows(content);
+          const parsed = parseRowsToOffers(rows);
+          if (parsed.length === 0) {
+            setCsvParsedOffers([]);
+            setCsvPreviewRows([]);
+            toast({
+              title: "No Valid Rows Found",
+              description: "Please check your CSV format and column headers.",
+              variant: "destructive",
+            });
+            return;
+          }
+          setCsvParsedOffers(parsed);
+          setCsvPreviewRows(parsed.slice(0, 4));
+        } catch (err: any) {
+          toast({
+            title: "CSV Parsing Error",
+            description: err?.message || "Failed to parse CSV file.",
+            variant: "destructive",
+          });
+        }
+      };
+      reader.readAsText(file);
+    }
   };
 
   const handleExecuteBatchImport = async () => {
@@ -442,7 +527,22 @@ export default function TechnicalOffersPage() {
     }
   };
 
-  // CSV Blob Download Helper
+  // Excel & CSV Blob Download Helpers
+  const downloadExcelBlob = (workbook: XLSX.WorkBook, filename: string) => {
+    const wbout = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const blob = new Blob([wbout], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const downloadCsvBlob = (content: string, filename: string) => {
     const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -455,14 +555,74 @@ export default function TechnicalOffersPage() {
     URL.revokeObjectURL(url);
   };
 
-  // CSV Export & Template Generators
+  // Export Handlers
+  const handleExportExcel = () => {
+    if (offers.length === 0) {
+      toast({ title: "No Data to Export", description: "Table is empty or filters returned zero results." });
+      return;
+    }
+
+    const headers = [
+      "Enquiry Date",
+      "Client Name",
+      "Segment",
+      "Enquiry Owner",
+      "Proposal Owner",
+      "System",
+      "Capacity",
+      "Offer Number",
+      "Status",
+      "Notes",
+    ];
+    const rows = offers.map((o) => [
+      o.enquiryDate || "",
+      o.clientName,
+      o.segment,
+      o.enquiryOwner || "",
+      o.proposalOwner || "",
+      o.system || "",
+      o.capacity || "",
+      o.offerNumber || "",
+      o.status || "",
+      o.notes || "",
+    ]);
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    ws["!cols"] = [
+      { wch: 14 },
+      { wch: 24 },
+      { wch: 16 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 20 },
+      { wch: 16 },
+      { wch: 22 },
+      { wch: 14 },
+      { wch: 30 },
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, "Technical Offers");
+    downloadExcelBlob(wb, `technical_offers_export_${new Date().toISOString().split("T")[0]}.xlsx`);
+  };
+
   const handleExportCSV = () => {
     if (offers.length === 0) {
       toast({ title: "No Data to Export", description: "Table is empty or filters returned zero results." });
       return;
     }
 
-    const headers = ["Enquiry Date", "Client Name", "Segment", "Enquiry Owner", "Proposal Owner", "System", "Capacity", "Offer Number", "Status", "Notes"];
+    const headers = [
+      "Enquiry Date",
+      "Client Name",
+      "Segment",
+      "Enquiry Owner",
+      "Proposal Owner",
+      "System",
+      "Capacity",
+      "Offer Number",
+      "Status",
+      "Notes",
+    ];
     const rows = offers.map((o) => [
       `"${(o.enquiryDate || "").replace(/"/g, '""')}"`,
       `"${o.clientName.replace(/"/g, '""')}"`,
@@ -480,9 +640,75 @@ export default function TechnicalOffersPage() {
     downloadCsvBlob(csvContent, `technical_offers_export_${new Date().toISOString().split("T")[0]}.csv`);
   };
 
-  const handleDownloadTemplate = () => {
-    const headers = ["Enquiry Date", "Client Name", "Segment", "Enquiry Owner", "Proposal Owner", "System", "Capacity ", "Offer Number"];
-    const sampleRow = ["2026-03-15", "Acme Pharmaceuticals", "Pharma", "Rajesh Sharma", "Amit Patel", "UF + 2-Pass RO", "50 m3/day", "PERM/2026/TO-0201"];
+  // Template Handlers
+  const handleDownloadExcelTemplate = () => {
+    const headers = [
+      "Enquiry Date",
+      "Client Name",
+      "Segment",
+      "Enquiry Owner",
+      "Proposal Owner",
+      "System",
+      "Capacity",
+      "Offer Number",
+      "Status",
+      "Notes",
+    ];
+    const sampleRow = [
+      "2026-03-15",
+      "Acme Pharmaceuticals",
+      "Pharma",
+      "Rajesh Sharma",
+      "Amit Patel",
+      "UF + 2-Pass RO",
+      "50 m3/day",
+      "PERM/2026/TO-0201",
+      "Submitted",
+      "High recovery membrane system",
+    ];
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([headers, sampleRow]);
+    ws["!cols"] = [
+      { wch: 14 },
+      { wch: 24 },
+      { wch: 16 },
+      { wch: 18 },
+      { wch: 18 },
+      { wch: 20 },
+      { wch: 16 },
+      { wch: 22 },
+      { wch: 14 },
+      { wch: 30 },
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, "Enquiry");
+    downloadExcelBlob(wb, "technical_offers_template.xlsx");
+  };
+
+  const handleDownloadCSVTemplate = () => {
+    const headers = [
+      "Enquiry Date",
+      "Client Name",
+      "Segment",
+      "Enquiry Owner",
+      "Proposal Owner",
+      "System",
+      "Capacity",
+      "Offer Number",
+      "Status",
+      "Notes",
+    ];
+    const sampleRow = [
+      "2026-03-15",
+      "Acme Pharmaceuticals",
+      "Pharma",
+      "Rajesh Sharma",
+      "Amit Patel",
+      "UF + 2-Pass RO",
+      "50 m3/day",
+      "PERM/2026/TO-0201",
+      "Submitted",
+      "High recovery membrane system",
+    ];
     const csvContent = [headers.join(","), sampleRow.join(",")].join("\n");
     downloadCsvBlob(csvContent, "technical_offers_template.csv");
   };
@@ -511,21 +737,51 @@ export default function TechnicalOffersPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="h-9 gap-1.5 rounded-lg border-border/70">
-            <Download className="w-4 h-4 text-muted-foreground" />
-            Template
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-lg border-border/70">
+                <Download className="w-4 h-4 text-muted-foreground" />
+                Template
+                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={handleDownloadExcelTemplate} className="cursor-pointer gap-2">
+                <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                <span>Excel (.xlsx)</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDownloadCSVTemplate} className="cursor-pointer gap-2">
+                <Download className="w-4 h-4 text-blue-600" />
+                <span>CSV (.csv)</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-          <Button variant="outline" size="sm" onClick={handleExportCSV} className="h-9 gap-1.5 rounded-lg border-border/70">
-            <Download className="w-4 h-4" />
-            Export CSV
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-lg border-border/70">
+                <Download className="w-4 h-4" />
+                Export
+                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={handleExportExcel} className="cursor-pointer gap-2">
+                <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                <span>Excel (.xlsx)</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportCSV} className="cursor-pointer gap-2">
+                <Download className="w-4 h-4 text-blue-600" />
+                <span>CSV (.csv)</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {canEdit && (
             <>
               <Button variant="outline" size="sm" onClick={() => setIsImportModalOpen(true)} className="h-9 gap-1.5 rounded-lg border-border/70">
                 <Upload className="w-4 h-4" />
-                Import CSV
+                Import (Excel / CSV)
               </Button>
 
               <Button size="sm" onClick={handleOpenNewModal} className="h-9 gap-1.5 rounded-lg shadow-sm">
@@ -681,7 +937,7 @@ export default function TechnicalOffersPage() {
               <div className="flex gap-2 pt-2">
                 <Button variant="outline" size="sm" onClick={() => setIsImportModalOpen(true)}>
                   <Upload className="w-4 h-4 mr-1.5" />
-                  Import CSV
+                  Import Offers
                 </Button>
                 <Button size="sm" onClick={handleOpenNewModal}>
                   <Plus className="w-4 h-4 mr-1.5" />
@@ -971,16 +1227,16 @@ export default function TechnicalOffersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* CSV Import Modal */}
+      {/* Import Modal (Excel / CSV) */}
       <Dialog open={isImportModalOpen} onOpenChange={setIsImportModalOpen}>
         <DialogContent className="sm:max-w-[650px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Upload className="w-5 h-5 text-primary" />
-              Import Technical Offers CSV
+              Import Technical Offers (Excel / CSV)
             </DialogTitle>
             <DialogDescription>
-              Upload a CSV file containing enquiry and proposal columns: Enquiry Date, Client Name, Segment, Enquiry Owner, Proposal Owner, System, Capacity, and Offer Number.
+              Upload a Microsoft Excel (.xlsx, .xls) or CSV file containing enquiry columns: Enquiry Date, Client Name, Segment, Enquiry Owner, Proposal Owner, System, Capacity, and Offer Number.
             </DialogDescription>
           </DialogHeader>
 
@@ -993,14 +1249,35 @@ export default function TechnicalOffersPage() {
               <input
                 type="file"
                 ref={fileInputRef}
-                accept=".csv"
+                accept=".csv, .xlsx, .xls, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, text/csv"
                 onChange={handleFileChange}
                 className="hidden"
               />
               <FileSpreadsheet className="w-10 h-10 mx-auto text-primary/70 mb-3" />
-              <div className="text-sm font-bold">Click to select CSV spreadsheet</div>
+              <div className="text-sm font-bold">Click to select Excel (.xlsx, .xls) or CSV spreadsheet</div>
               <div className="text-xs text-muted-foreground mt-1">Columns will be automatically mapped and trimmed</div>
             </button>
+
+            <div className="flex flex-wrap items-center justify-between text-xs text-muted-foreground px-1 gap-2">
+              <span>Need a starter template?</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleDownloadExcelTemplate}
+                  className="text-primary hover:underline font-medium inline-flex items-center gap-1 cursor-pointer"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" /> Excel (.xlsx)
+                </button>
+                <span>•</span>
+                <button
+                  type="button"
+                  onClick={handleDownloadCSVTemplate}
+                  className="text-primary hover:underline font-medium inline-flex items-center gap-1 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5 text-blue-600" /> CSV (.csv)
+                </button>
+              </div>
+            </div>
 
             {csvPreviewRows.length > 0 && (
               <div className="space-y-2">
