@@ -1,4 +1,4 @@
-import { db, pool, autoMigrate, caseStudiesTable, questionnairesTable, questionnaireProjectsTable, assistantDocumentsTable, caseCreatorProjectsTable, chatsTable, usersTable } from "@workspace/db";
+import { db, pool, autoMigrate, caseStudiesTable, questionnairesTable, questionnaireProjectsTable, assistantDocumentsTable, caseCreatorProjectsTable, chatsTable, usersTable, technicalOffersTable } from "@workspace/db";
 import { eq, ilike, or, desc, sql } from "drizzle-orm";
 import { debugLog } from "./modes";
 
@@ -144,6 +144,68 @@ const initialDb: Record<string, any[]> = {
   ],
   chats: [],
   users: [],
+  technical_offers: [
+    {
+      id: 1,
+      enquiry_date: "2026-02-14",
+      client_name: "Waaree Energies Ltd.",
+      segment: "Solar & Industrial",
+      enquiry_owner: "Rajesh Sharma",
+      proposal_owner: "Amit Patel",
+      system: "UF + 2-Pass RO",
+      capacity: "50 m3/day",
+      offer_number: "PERM/2026/TO-0142",
+      status: "Submitted",
+      notes: "Process water upgrade for high-purity solar panel cell line",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: 2,
+      enquiry_date: "2026-02-18",
+      client_name: "Nandesari CETP",
+      segment: "CETP / Municipal",
+      enquiry_owner: "Karthik Mehta",
+      proposal_owner: "Pooja Desai",
+      system: "NF + RO + MEE (ZLD)",
+      capacity: "3.5 MLD",
+      offer_number: "PERM/2026/TO-0158",
+      status: "In Review",
+      notes: "Tertiary effluent recycling system for chemical cluster",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: 3,
+      enquiry_date: "2026-02-25",
+      client_name: "Himalaya Herbal Healthcare",
+      segment: "Pharma / Herbal",
+      enquiry_owner: "Vikram Shah",
+      proposal_owner: "Sneha Nair",
+      system: "MF + RO + UV",
+      capacity: "15 m3/day",
+      offer_number: "PERM/2026/TO-0177",
+      status: "Won",
+      notes: "IP-grade Purified Water Generation package",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    {
+      id: 4,
+      enquiry_date: "2026-03-02",
+      client_name: "Amul Dairy (GCMMF)",
+      segment: "Food & Beverage",
+      enquiry_owner: "Rajesh Sharma",
+      proposal_owner: "Amit Patel",
+      system: "UF Whey Concentration",
+      capacity: "250,000 L/day",
+      offer_number: "PERM/2026/TO-0193",
+      status: "Submitted",
+      notes: "Whey protein concentration and lactose demineralization",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+  ],
 };
 
 const dbStore: Record<string, any[]> = { ...initialDb };

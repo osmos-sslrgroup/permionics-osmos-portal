@@ -13,6 +13,7 @@ import ResetPasswordPage from './pages/reset-password';
 import DashboardPage from './pages/dashboard';
 import LibraryPage from './pages/library/index';
 import CaseStudyDetail from './pages/library/detail';
+import TechnicalOffersPage from './pages/technical-offers/index';
 import GeneratorPage from './pages/generator/index';
 import QuestionnairePage from './pages/questionnaire/index';
 import AssistantPage from './pages/assistant/index';
@@ -57,6 +58,14 @@ function Router() {
         <ProtectedRoute>
           <AppLayout>
             <CaseStudyDetail />
+          </AppLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route path="/technical-offers">
+        <ProtectedRoute>
+          <AppLayout>
+            <TechnicalOffersPage />
           </AppLayout>
         </ProtectedRoute>
       </Route>

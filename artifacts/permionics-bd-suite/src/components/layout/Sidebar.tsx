@@ -13,6 +13,7 @@ import {
   Sun,
   Moon,
   FileEdit,
+  FileSpreadsheet,
   Menu
 } from "lucide-react";
 import { useLogout, useGetMe } from "@workspace/api-client-react";
@@ -33,6 +34,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/library", label: "Library", icon: BookOpen },
+  { href: "/technical-offers", label: "Technical Offers", icon: FileSpreadsheet },
   { href: "/generator", label: "Generator", icon: FileText },
   { href: "/questionnaire", label: "Questionnaire", icon: ClipboardList },
   { href: "/pace", label: "PACE", icon: Monitor },

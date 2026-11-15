@@ -160,9 +160,56 @@ export interface ChatResponse {
   sources: ChatSource[];
 }
 
+export interface TechnicalOffer {
+  id: number;
+  enquiryDate: string;
+  clientName: string;
+  segment: string;
+  enquiryOwner: string;
+  proposalOwner: string;
+  system: string;
+  capacity: string;
+  offerNumber: string;
+  status: string;
+  /** @nullable */
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TechnicalOfferInput {
+  enquiryDate?: string;
+  clientName: string;
+  segment: string;
+  enquiryOwner?: string;
+  proposalOwner?: string;
+  system?: string;
+  capacity?: string;
+  offerNumber: string;
+  status?: string;
+  notes?: string;
+}
+
+export interface BatchTechnicalOfferInput {
+  offers: TechnicalOfferInput[];
+}
+
+export interface BatchTechnicalOfferResponse {
+  inserted: number;
+  count: number;
+  errors?: string[];
+}
+
 export type ListCaseStudiesParams = {
 sector?: string;
 technology?: string;
 search?: string;
+};
+
+export type ListTechnicalOffersParams = {
+search?: string;
+segment?: string;
+system?: string;
+status?: string;
 };
 

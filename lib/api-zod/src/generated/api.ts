@@ -220,6 +220,163 @@ export const DeleteCaseStudyResponse = zod.void()
 
 
 /**
+ * @summary List all technical offers with optional search and filters
+ */
+export const ListTechnicalOffersQueryParams = zod.object({
+  "search": zod.coerce.string().optional(),
+  "segment": zod.coerce.string().optional(),
+  "system": zod.coerce.string().optional(),
+  "status": zod.coerce.string().optional()
+})
+
+export const ListTechnicalOffersResponseItem = zod.object({
+  "id": zod.number(),
+  "enquiryDate": zod.string(),
+  "clientName": zod.string(),
+  "segment": zod.string(),
+  "enquiryOwner": zod.string(),
+  "proposalOwner": zod.string(),
+  "system": zod.string(),
+  "capacity": zod.string(),
+  "offerNumber": zod.string(),
+  "status": zod.string(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+export const ListTechnicalOffersResponse = zod.array(ListTechnicalOffersResponseItem)
+
+
+/**
+ * @summary Create a new technical offer
+ */
+export const CreateTechnicalOfferBody = zod.object({
+  "enquiryDate": zod.string().optional(),
+  "clientName": zod.string(),
+  "segment": zod.string(),
+  "enquiryOwner": zod.string().optional(),
+  "proposalOwner": zod.string().optional(),
+  "system": zod.string().optional(),
+  "capacity": zod.string().optional(),
+  "offerNumber": zod.string(),
+  "status": zod.string().optional(),
+  "notes": zod.string().optional()
+})
+
+export const CreateTechnicalOfferResponse = zod.object({
+  "id": zod.number(),
+  "enquiryDate": zod.string(),
+  "clientName": zod.string(),
+  "segment": zod.string(),
+  "enquiryOwner": zod.string(),
+  "proposalOwner": zod.string(),
+  "system": zod.string(),
+  "capacity": zod.string(),
+  "offerNumber": zod.string(),
+  "status": zod.string(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Get a single technical offer by ID
+ */
+export const GetTechnicalOfferParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetTechnicalOfferResponse = zod.object({
+  "id": zod.number(),
+  "enquiryDate": zod.string(),
+  "clientName": zod.string(),
+  "segment": zod.string(),
+  "enquiryOwner": zod.string(),
+  "proposalOwner": zod.string(),
+  "system": zod.string(),
+  "capacity": zod.string(),
+  "offerNumber": zod.string(),
+  "status": zod.string(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Update an existing technical offer
+ */
+export const UpdateTechnicalOfferParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UpdateTechnicalOfferBody = zod.object({
+  "enquiryDate": zod.string().optional(),
+  "clientName": zod.string(),
+  "segment": zod.string(),
+  "enquiryOwner": zod.string().optional(),
+  "proposalOwner": zod.string().optional(),
+  "system": zod.string().optional(),
+  "capacity": zod.string().optional(),
+  "offerNumber": zod.string(),
+  "status": zod.string().optional(),
+  "notes": zod.string().optional()
+})
+
+export const UpdateTechnicalOfferResponse = zod.object({
+  "id": zod.number(),
+  "enquiryDate": zod.string(),
+  "clientName": zod.string(),
+  "segment": zod.string(),
+  "enquiryOwner": zod.string(),
+  "proposalOwner": zod.string(),
+  "system": zod.string(),
+  "capacity": zod.string(),
+  "offerNumber": zod.string(),
+  "status": zod.string(),
+  "notes": zod.string().nullish(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a technical offer
+ */
+export const DeleteTechnicalOfferParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteTechnicalOfferResponse = zod.void()
+
+
+/**
+ * @summary Batch import technical offers from CSV or JSON
+ */
+export const BatchImportTechnicalOffersBody = zod.object({
+  "offers": zod.array(zod.object({
+  "enquiryDate": zod.string().optional(),
+  "clientName": zod.string(),
+  "segment": zod.string(),
+  "enquiryOwner": zod.string().optional(),
+  "proposalOwner": zod.string().optional(),
+  "system": zod.string().optional(),
+  "capacity": zod.string().optional(),
+  "offerNumber": zod.string(),
+  "status": zod.string().optional(),
+  "notes": zod.string().optional()
+}))
+})
+
+export const BatchImportTechnicalOffersResponse = zod.object({
+  "inserted": zod.number(),
+  "count": zod.number(),
+  "errors": zod.array(zod.string()).optional()
+})
+
+
+/**
  * @summary List all saved questionnaires
  */
 export const ListQuestionnairesResponseItem = zod.object({

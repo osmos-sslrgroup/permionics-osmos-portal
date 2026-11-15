@@ -97,6 +97,26 @@ export async function autoMigrate() {
         content TEXT NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
+      CREATE TABLE IF NOT EXISTS technical_offers (
+        id BIGSERIAL PRIMARY KEY,
+        enquiry_date TEXT NOT NULL DEFAULT '',
+        client_name TEXT NOT NULL,
+        segment TEXT NOT NULL,
+        enquiry_owner TEXT NOT NULL DEFAULT '',
+        proposal_owner TEXT NOT NULL DEFAULT '',
+        system TEXT NOT NULL DEFAULT '',
+        capacity TEXT NOT NULL DEFAULT '',
+        offer_number TEXT UNIQUE NOT NULL,
+        status TEXT NOT NULL DEFAULT 'Submitted',
+        notes TEXT DEFAULT '',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_technical_offers_offer_number ON technical_offers(offer_number);
+      CREATE INDEX IF NOT EXISTS idx_technical_offers_client_name ON technical_offers(client_name);
+      CREATE INDEX IF NOT EXISTS idx_technical_offers_segment ON technical_offers(segment);
     `);
 
     // 2. Additive ALTER TABLE updates for existing databases
