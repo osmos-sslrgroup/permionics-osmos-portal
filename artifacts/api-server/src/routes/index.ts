@@ -10,6 +10,7 @@ import settingsRouter from "./settings";
 import assistantRouter from "./assistant";
 import uploadRouter from "./upload";
 import documentsRouter from "./documents";
+import technicalOffersRouter from "./technicalOffers";
 
 const router: IRouter = Router();
 
@@ -17,6 +18,7 @@ router.use(healthRouter);
 router.use(authRouter);
 router.use(dashboardRouter);
 router.use(caseStudiesRouter);
+router.use(technicalOffersRouter);
 router.use(questionnairesRouter);
 router.use(projectsRouter);
 router.use(chatRouter);
